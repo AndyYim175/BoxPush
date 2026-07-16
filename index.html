@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BoxPush Brutalist Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Material Symbols Outlined -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #dcdcdc;
+            color: #000000;
+            touch-action: none; /* Disable zooming and double-tap actions on mobile */
+        }
+        /* Custom scrollbar for level select sidebar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #ffffff;
+            border-left: 1px solid #000000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #000000;
+        }
+    </style>
+</head>
+<body class="h-full w-full overflow-hidden flex flex-col justify-between items-center relative bg-[#dcdcdc]">
+
+    <!-- Floating Left-Center Menu & Back Button Group -->
+    <div class="fixed top-6 left-6 z-40 flex items-center space-x-2">
+        <button id="btn-menu" onclick="toggleSidebar()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Open Menu">
+            <span class="material-symbols-outlined select-none text-xl leading-none">menu</span>
+        </button>
+        <button id="btn-back" onclick="exitToOverworld()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Back to Overworld">
+            <span class="material-symbols-outlined select-none text-xl leading-none">arrow_back</span>
+        </button>
+    </div>
+
+    <!-- Floating Top-Center Level Title Banner (Minimalist) -->
+    <div class="fixed top-8 left-1/2 transform -translate-x-1/2 z-30 text-center select-none pointer-events-none w-full max-w-[50%]">
+        <h1 id="level-title-display" class="font-black text-xs md:text-sm tracking-widest uppercase text-black drop-shadow-sm truncate">
+            OVERWORLD MAP
+        </h1>
+    </div>
+
+    <!-- Floating Overworld Simple Level Stats Display -->
+    <div id="overworld-stats" class="fixed top-8 right-6 z-40 font-black text-xs md:text-sm tracking-widest text-black select-none hidden">
+        0/20
+    </div>
+
+    <!-- Floating Action Group (Sleek minimalist controls, no heavy brutalist offsets) -->
+    <div id="level-controls-group" class="fixed top-6 right-6 z-40 flex items-center space-x-2 transition-opacity duration-300">
+        <!-- Undo Button (Material Symbols) -->
+        <button onclick="undoMove()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Undo (Z or U)">
+            <span class="material-symbols-outlined select-none text-xl leading-none">undo</span>
+        </button>
+        <!-- Reset Button (Material Symbols) -->
+        <button onclick="resetCurrentLevel()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Reset (R)">
+            <span class="material-symbols-outlined select-none text-xl leading-none">replay</span>
+        </button>
+    </div>
+
+    <!-- Centered Full-Screen Play Canvas Container -->
+    <main class="w-full h-full flex items-center justify-center relative bg-[#dcdcdc] overflow-hidden">
+        <canvas id="gameCanvas" class="bg-[#dcdcdc] block"></canvas>
+    </main>
+
+    <!-- Slide-Out Sidebar Menu (Levels, Hints, Rules) -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/30 z-40 hidden transition-opacity duration-300"></div>
+    
+    <aside id="sidebar-menu" class="fixed top-0 left-0 h-full w-80 bg-white border-r border-black z-50 transform -translate-x-full transition-transform duration-300 flex flex-col rounded-none">
+        <!-- Sidebar Header with close button -->
+        <div class="p-6 border-b border-black flex justify-between items-center bg-black text-white">
+            <h2 class="font-black text-xs tracking-widest uppercase">BOXPUSH MENU</h2>
+            <button onclick="toggleSidebar()" class="w-7 h-7 border border-white/50 flex items-center justify-center hover:bg-white hover:text-black transition-colors font-bold rounded-none text-[10px]">
+                X
+            </button>
+        </div>
+
+        <!-- 3 Items Tab Selector -->
+        <div class="flex border-b border-black bg-black text-white text-[10px] font-black tracking-widest">
+            <button id="tab-levels-btn" onclick="switchTab('levels')" class="flex-1 py-3 border-r border-black text-center uppercase bg-white text-black">
+                LEVELS
+            </button>
+            <button id="tab-hints-btn" onclick="switchTab('hints')" class="flex-1 py-3 border-r border-black text-center uppercase hover:bg-neutral-900 transition-colors">
+                HINTS
+            </button>
+            <button id="tab-rules-btn" onclick="switchTab('rules')" class="flex-1 py-3 text-center uppercase hover:bg-neutral-900 transition-colors">
+                RULES
+            </button>
+        </div>
+
+        <!-- Scrollable Tab Container -->
+        <div class="flex-1 overflow-y-auto bg-white">
+            <!-- Tab Contents: Level Select -->
+            <div id="panel-levels" class="block">
+                <!-- Return to Overworld Trigger inside levels select -->
+                <button onclick="exitToOverworldFromMenu()" class="w-full text-left px-6 py-5 font-black text-xs border-b border-black bg-neutral-100 hover:bg-black hover:text-white transition-colors duration-150 rounded-none flex items-center justify-between">
+                    <span class="tracking-widest uppercase text-black hover:text-inherit">← RETURN TO OVERWORLD</span>
+                </button>
+                <div id="sidebar-level-list">
+                    <!-- Dynamic list generated in JavaScript -->
+                </div>
+            </div>
+
+            <!-- Tab Contents: Hints -->
+            <div id="panel-hints" class="hidden p-6 space-y-4">
+                <div class="p-0">
+                    <h3 id="hints-level-title" class="font-black text-xs uppercase tracking-widest text-black mb-2">HINTS</h3>
+                    <p id="hints-level-desc" class="text-xs leading-relaxed font-bold text-neutral-600">
+                        <!-- Dynamic current level hint loaded here -->
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tab Contents: Rules -->
+            <div id="panel-rules" class="hidden p-6 space-y-6">
+                <div id="rules-list" class="divide-y divide-neutral-200">
+                    <!-- Dynamic rule elements loaded here -->
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Integrated Bottom Text HUD (Safely clear of D-Pad and mobile layouts) -->
+    <div id="hud-bottom-text" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 text-center pointer-events-none select-none text-xs font-black uppercase tracking-widest text-black transition-opacity duration-300 opacity-0 whitespace-nowrap bg-white/90 px-4 py-2 border border-black/10"></div>
+
+    <!-- Level Hint Floating Action Button (Clean toggle) -->
+    <div id="bottom-hint-wrapper" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex flex-col items-center select-none w-full max-w-[80%] md:max-w-md hidden">
+        <button id="btn-toggle-hint" onclick="toggleBottomHint()" class="px-4 py-2 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
+            HINT
+        </button>
+    </div>
+
+    <!-- Zoom Controls (Bottom Right, positioned perfectly above coordinates) -->
+    <div id="zoom-controls" class="fixed bottom-14 right-6 z-40 flex flex-col space-y-2 select-none hidden">
+        <button onclick="changeZoom(0.2)" class="w-11 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white flex items-center justify-center font-bold text-xl rounded-none active:bg-neutral-100" title="Zoom In">
+            <span class="material-symbols-outlined select-none text-xl">zoom_in</span>
+        </button>
+        <button onclick="changeZoom(-0.2)" class="w-11 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white flex items-center justify-center font-bold text-xl rounded-none active:bg-neutral-100" title="Zoom Out">
+            <span class="material-symbols-outlined select-none text-xl">zoom_out</span>
+        </button>
+    </div>
+
+    <!-- Completely borderless & transparent floating touch buttons (Bottom-Left Alignment) -->
+    <div id="mobile-dpad-container" class="fixed bottom-6 left-6 z-30 grid grid-cols-3 gap-0 bg-transparent p-0 select-none">
+        <div></div>
+        <button onclick="handleDirectionalInput('up')" class="w-12 h-12 bg-black/5 text-black hover:bg-black/15 active:bg-black/25 flex items-center justify-center font-black text-lg rounded-none select-none border-0 outline-none">
+            ↑
+        </button>
+        <div></div>
+        
+        <button onclick="handleDirectionalInput('left')" class="w-12 h-12 bg-black/5 text-black hover:bg-black/15 active:bg-black/25 flex items-center justify-center font-black text-lg rounded-none select-none border-0 outline-none">
+            ←
+        </button>
+        <button onclick="handleDirectionalInput('down')" class="w-12 h-12 bg-black/5 text-black hover:bg-black/15 active:bg-black/25 flex items-center justify-center font-black text-lg rounded-none select-none border-0 outline-none">
+            ↓
+        </button>
+        <button onclick="handleDirectionalInput('right')" class="w-12 h-12 bg-black/5 text-black hover:bg-black/15 active:bg-black/25 flex items-center justify-center font-black text-lg rounded-none select-none border-0 outline-none">
+            →
+        </button>
+    </div>
+
+    <!-- Tiny, Minimalist real-time grid coordinates HUD (Bottom-Right, fully Cartesian X,Y) -->
+    <div id="hud-coordinates" class="fixed bottom-6 right-6 z-30 pointer-events-none select-none text-[10px] font-bold text-neutral-400 font-mono tracking-wider">
+        [X: 0, Y: 0]
+    </div>
+
+    <!-- Modern Minimalist Title Screen Overlay -->
+    <div id="title-screen" class="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#dcdcdc] p-8 hidden">
+        <!-- Top Visual Accent -->
+        <div class="w-full max-w-xs h-1 bg-black"></div>
+        
+        <div class="flex flex-col items-center space-y-8 select-none">
+            <!-- Game Logo & Title -->
+            <h1 class="font-black text-4xl md:text-5xl tracking-[0.25em] text-black text-center uppercase leading-none">
+                BOXPUSH
+            </h1>
+            <p class="font-bold text-xs tracking-widest text-black/50 uppercase">
+                BRUTALIST ENGINE
+            </p>
+            
+            <!-- Modern Flat Action Menu -->
+            <div class="flex flex-col space-y-3 w-60 pt-6">
+                <button onclick="startGameFromTitle()" class="w-full py-4 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
+                    PLAY GAME
+                </button>
+                <button onclick="showCredits()" class="w-full py-4 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
+                    CREDITS
+                </button>
+            </div>
+        </div>
+        
+        <!-- Bottom Blueprint Spec Info -->
+        <p class="text-[9px] font-mono text-black/35 tracking-wider uppercase">
+            [V1.5.0 • BLUEPRINT LAYOUT SYSTEM]
+        </p>
+    </div>
+
+    <!-- Interactive Credits Modal -->
+    <div id="credits-modal" class="fixed inset-0 z-50 flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden animate-fade-in">
+        <div class="bg-white border border-black p-8 max-w-sm w-full text-center relative rounded-none">
+            <h2 class="font-black text-sm tracking-widest uppercase text-black mb-4">CREDITS</h2>
+            <div class="text-[11px] font-bold text-neutral-600 space-y-4 mb-6 tracking-wide leading-relaxed">
+                <p>Designed, developed, and calibrated under the direct guidance of the lead author.</p>
+                <div class="w-12 h-[1px] bg-neutral-200 mx-auto"></div>
+                <p class="text-black font-black text-[10px] tracking-widest uppercase">Special Thanks</p>
+                <p>To our puzzle designers, playtesters, and retro mechanics architects!</p>
+            </div>
+            <button onclick="hideCredits()" class="px-6 py-3 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
+                CLOSE
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /************************************************************************
+         * LAUNCH CONFIGURATION TARGET
+         * -1 = Launch on Title Screen (Default)
+         *  0 = Launch on Overworld Map
+         *  1+ = Launch directly on that Level (e.g. 1 loads activeLevelIndex 0)
+         ************************************************************************/
+        const LAUNCH_TARGET = -1;
+
+        /************************************************************************
+         * LEVEL DATABASE WITH HINTS, TRAPS, YELLOW WALLS & MULTI-TILE STRUCTURE
+         ************************************************************************/
+        const LEVELS = [
+            {
+                name: "Beginning",
+                grid: [
+                    "#########",
+                    "####.####",
+                    "#### ####",
+                    "#       #",
+                    "# @   $ #",
+                    "#       #",
+                    "#########"
+                ]
+            },
+            {
+                name: "Multiple boxes",
+                hint: "There is an order.",
+                grid: [
+                    "#########",
+                    "###   ###",
+                    "#@ $ .###",
+                    "##$##   #",
+                    "#.  ##  #",
+                    "###     #",
+                    "#########"
+                ]
+            },
+            {
+                name: "More boxes",
+                hint: "Some boxes are not meant to be pushed all the way at once.",
+                grid: [
+                    "###########",
+                    "###      .#",
+                    "###  ## ###",
+                    "##   #  ###",
+                    "# $ .#$ ###",
+                    "#@##$   .##",
+                    "####  #####",
+                    "###########"
+                ]
+            },
+            {
+                name: "Box avoid",
+                grid: [
+                    "###########",
+                    "#@ x     .#",
+                    "###$ # ####",
+                    "##  x#   ##",
+                    "##   #x  ##",
+                    "###     ###",
+                    "#####   ###",
+                    "###########"
+                ]
+            },
+            {
+                name: "Combined together",
+                hint: "Plan your route around the traps so you always have space to push from behind.",
+                grid: [
+                    "###########",
+                    "##x .######",
+                    "##@$.######",
+                    "### ###x ##",
+                    "### ###   #",
+                    "###$###  x#",
+                    "##x.### $##",
+                    "##      x##",
+                    "###  x#####",
+                    "###########"
+                ]
+            },
+            {
+                name: "Double Jeopardy",
+                hint: "Think about how to push the box towards the right-top target.",
+                grid: [
+                    "###########",
+                    "#@  x .x#.#",
+                    "# #$# # # #",
+                    "#    $x$x #",
+                    "# #x# # # #",
+                    "#. $x x   #",
+                    "### # ### #",
+                    "###x  $.. #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Not everything",
+                hint: "You cannot enter the first room later on, so...",
+                grid: [
+                    "###########",
+                    "###########",
+                    "####  #####",
+                    "####      #",
+                    "####.###$ #",
+                    "#. x.$x   #",
+                    "#$ ## #####",
+                    "# @## $ . #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Room ban...?",
+                hint: "Which way should you go?",
+                grid: [
+                    "###########",
+                    "# . $ x.$x#",
+                    "#   # #  x#",
+                    "#####x## .#",
+                    "####   ##$#",
+                    "#      #  #",
+                    "#   ##x#  #",
+                    "# @ ## #  #",
+                    "#####. $x #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Left and right",
+                hint: "Which target of the five should be placed first?",
+                grid: [
+                    "###########",
+                    "### .#.x###",
+                    "###  #    #",
+                    "###      .#",
+                    "#### ###..#",
+                    "#### ######",
+                    "#### x   ##",
+                    "#### $ $ ##",
+                    "#### $$$###",
+                    "####@   ###",
+                    "###########"
+                ]
+            },
+            {
+                name: "Not all have to be solved",
+                grid: [
+                    "###########",
+                    "#         #",
+                    "#   $     #",
+                    "#         #",
+                    "#         #",
+                    "# @ $  .  #",
+                    "#         #",
+                    "#         #",
+                    "#   $  .  #",
+                    "#         #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Not all have to be done",
+                grid: [
+                    "###########",
+                    "#         #",
+                    "#      .  #",
+                    "#         #",
+                    "#         #",
+                    "# @ $  .  #",
+                    "#         #",
+                    "#         #",
+                    "#   $  .  #",
+                    "#         #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Combine them all",
+                hint: "Get to the lower-right area.",
+                grid: [
+                    "###########",
+                    "#   # $$$ #",
+                    "# @ x  $  #",
+                    "#####$$   #",
+                    "#$x $  $ $#",
+                    "#  $ $$ $ #",
+                    "# $########",
+                    "#  x      #",
+                    "#  #  $ . #",
+                    "#$x#      #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Hmmm...",
+                grid: [
+                    "###########",
+                    "#         #",
+                    "# @ $  .  #",
+                    "#         #",
+                    "#######11##",
+                    "#         #",
+                    "# .   $   #",
+                    "#         #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Some logic required...",
+                hint: "Not all rooms you get to should be activated the first time you get into the room.",
+                grid: [
+                    "###########",
+                    "#@   #    #",
+                    "# $. 0 $. #",
+                    "#    #    #",
+                    "##33###10##",
+                    "#    #    #",
+                    "# $. 2 $. #",
+                    "#    #    #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Hmmm...(2)",
+                hint: "Think about positions the top box could be.",
+                grid: [
+                    "############",
+                    "#@.  2$   .#",
+                    "##      # $#",
+                    "###4####2$ #",
+                    "###4###  .##",
+                    "##    2 $3##",
+                    "## $. 2 .3##",
+                    "##. ########",
+                    "############"
+                ]
+            },
+            {
+                name: "Structure Introduction",
+                grid: [
+                    "############",
+                    "#@     #####",
+                    "#  A    ####",
+                    "#  A     . #",
+                    "#          #",
+                    "############"
+                ]
+            },
+            {
+                name: "More tiles!",
+                hint: "There are places you can access at the start.",
+                grid: [
+                    "###########",
+                    "# #       #",
+                    "# # $ . #1#",
+                    "#@#     # #",
+                    "# ###x### #",
+                    "# AAA     #",
+                    "###0###1###",
+                    "#         #",
+                    "# $ . $ . #",
+                    "#         #",
+                    "###########"
+                ]
+            },
+            {
+                name: "Simple..?",
+                hint: "Only some blocks can light up the target.",
+                grid: [
+                    "###########",
+                    "#######  ##",
+                    "#######  ##",
+                    "######AA ##",
+                    "####x    ##",
+                    "#### #$ x##",
+                    "##x@$    ##",
+                    "###. ##xx##",
+                    "### x######",
+                    "###########"
+                ]
+            },
+            {
+                name: "Key-locks",
+                hint: "How to push a box back?",
+                grid: [
+                    "###########",
+                    "###       #",
+                    "# $1  2  .#",
+                    "# ##### ###",
+                    "# #.$ #  ######",
+                    "# #   ##  3$ .#",
+                    "# 1   3   #####",
+                    "#### ### ##",
+                    "#@  $ .  ##",
+                    "###########"
+                ]
+            },
+            {
+                name: "Another set",
+                hint: "Same as the last level.",
+                grid: [
+                    "###########",
+                    "#  ####   ####",
+                    "#. 2   x .$  #",
+                    "#$ #### ####3##",
+                    "#  ####       #",
+                    "#   ##  x$3  .#",
+                    "#12###3#2######",
+                    "#  A     ##",
+                    "#@AA.. ####",
+                    "###########"
+                ]
+            }
+        ];
+
+        // Progressive Rules Codex Config
+        const RULES_CODEX = [
+            {
+                name: "How to win",
+                unlockAtLevel: 1,
+                desc: "Move using **Arrow keys**, **WASD** or the touch D-pad. Push the block onto the target."
+            },
+            {
+                name: "Computer hotkeys",
+                unlockAtLevel: 1,
+                desc: "Use `z` to revert an action and use `r` to reset. You can revert a reset action!"
+            },
+            {
+                name: "Red hazards",
+                unlockAtLevel: 4,
+                desc: "A box cannot be on top of the crosshair (`x`) tiles. You will be locked until you undo."
+            },
+            {
+                name: "Win condition",
+                unlockAtLevel: 4,
+                desc: "All boxes are green **or** all green spots have box on top of themm"
+            },
+            {
+                name: "Yellow walls",
+                unlockAtLevel: 13,
+                desc: "Yellow walls can be passed only when **exactly** that many endpoints are satisfied."
+            },
+            {
+                name: "Bigger structures",
+                unlockAtLevel: 16,
+                desc: "Some blocks span multiple cells and move together as connected structures."
+            }
+        ];
+
+        /************************************************************************
+         * OVERWORLD GRID CONFIGURATION AND HELPER GUIDE
+         * Nodes mapped cleanly using standard Cartesian system:
+         * X (Col) increases rightward. Y (Row) increases upward.
+         * Top-most row of the 13-row baseline layout is Y=12. Bottom-most row is Y=0.
+         ************************************************************************/
+        const OVERWORLD_COMPRESSED = [
+            "#[28]         #[50]",
+            "#[28]         #[50]",
+            "#[28]         #[50]",
+            "#[20]       L         #[50]",
+            "#[20]       L         #[50]",
+            "#[20]       L         #[50]",
+            "#[28]         #[50]",
+            "#[28]         #[50]",
+            "#[28]         #[50]",
+            "#[31]   #[50]",
+            "#[31]LLL#[50]",
+            "#[28]   [8]#[55]",
+            "#[28]   [8]#[55]",
+            "#[28]   [8]#[55]",
+            "#[28]   [8]#[55]",
+            "#[28]   [8]#[55]",
+            "#[28]   #[55]",
+            "#[28]   #[55]",
+            "#[28]   #[55]",
+            "#[28]LLL###[55]",
+            "#[22] [12]#[55]",
+            "#[22] [12]#[55]",
+            "#[22] [12]#[55]",
+            "#[22]LLL#[6]LLL#####[55]",
+            "#   ## [6]   ## [6]   ##   [8]#[55]",
+            "# @    [6]   LL [6]   ##   [8]#[55]",
+            "#   ## [6]   ## [6]   ##   [8]#[55]",
+            "#[500]"
+        ];
+        // Cartesian Nodes database mapping (assuming grid baseline height is 13 rows)
+        const OVERWORLD = {
+            compressedGrid: OVERWORLD_COMPRESSED,
+            nodes: {
+                "2,2":   { type: "info", text: "Use arrow buttons / wasd keys / arrow keys to move." },
+                "8,2":   { type: "level", index: 0, label: "1" },
+                "10,2":  { type: "level", index: 1, label: "2" },
+                "12,2":  { type: "level", index: 2, label: "3" },
+                "15,2":  { type: "lock", required: 3 },
+                
+                "19,2":  { type: "level", index: 3, label: "4" },
+                "21,2":  { type: "level", index: 4, label: "5" },
+                "23,2":  { type: "level", index: 5, label: "6" },
+                "23,4":  { type: "lock", required: 6 },
+                
+                "24,6":   { type: "info", text: "It's intended to do levels in order." },
+                "26,6":   { type: "level", index: 6, label: "7" },
+                "28,6":   { type: "level", index: 7, label: "8" },
+                "30,6":   { type: "level", index: 8, label: "9" },
+                "32,4":  { type: "lock", required: 9 },
+                
+                "29,2":   { type: "info", text: "Tip: You can always check back the rules in the menu." },
+                "33,2":   { type: "level", index: 9, label: "10" },
+                "35,2":   { type: "level", index: 10, label: "11" },
+                "29,8":  { type: "lock", required: 11 },
+
+                "5,4":    { type: "lock", required: 1, text: "Requires 8 completed levels to pass." },
+                "29,15":   { type: "level", index: 11, label: "12" },
+                "34,15":   { type: "level", index: 12, label: "13" },
+                "36,15":   { type: "level", index: 13, label: "14" },
+                "34,13":    { type: "info", text: "If you can't complete a level, consider using a hint!" },
+                "36,13":    { type: "level", index: 14, label: "15" },
+
+                "32,17":  { type: "lock", required: 15 },
+                "30,21":   { type: "level", index: 15, label: "16" },
+                "32,21":   { type: "level", index: 16, label: "17" },
+                "34,21":   { type: "level", index: 17, label: "18" },
+
+                "32,23":   { type: "info", text: "Good luck on #19 and #20 ;)" },
+                "30,23":    { type: "level", index: 18, label: "19" },
+                "34,23":   { type: "level", index: 19, label: "20" },
+                
+                "27,23":  { type: "lock", required: 20 },
+                "25,23":   { type: "info", text: "Conrgatulations! You've reached the end of this game for now." },
+                "23,23":   { type: "info", text: "Look for updates (that will happen once in a while)." },
+                "21,23":   { type: "info", text: "Thanks for playing and I hope this game have you a nice time!" }
+                
+            }
+        };
+
+        function expandOverworldGrid(rows) {
+            return rows.map(row => {
+                return row.replace(/(.)\[(\d+)\]/g, (match, char, count) => {
+                    return char.repeat(parseInt(count, 10));
+                }).split('');
+            });
+        }
+
+        // Core Game Engine State
+        let gameState = "title"; 
+        let activeLevelIndex = 0;
+        let activeGrid = [];
+        let originalGrid = [];
+        let playerPos = { r: 0, c: 0 };
+        let historyStack = [];
+        
+        // Level status flags
+        let isLevelFailed = false;
+        let isLevelSolved = false;
+
+        // Expanded Overworld State
+        let overworldGrid = expandOverworldGrid(OVERWORLD.compressedGrid);
+        let overworldPlayerPos = { r: 1, c: 2 }; 
+        let visualOverworldPlayer = { x: 2, y: 1, targetX: 2, targetY: 1, facing: 'right', blinkTimer: 0, blinkState: false };
+
+        // Camera Smooth-Follow coordinates
+        let overworldCamera = { x: 2, y: 1 };
+        let overworldZoom = 1.0;
+        let targetOverworldZoom = 1.0;
+
+        // Lock component grouping definitions
+        let lockComponents = [];
+
+        // History tracking for the overworld position when entering levels
+        let levelEntryState = {
+            preEntryPosition: { r: 1, c: 2 },
+            entryDirection: 'right'
+        };
+
+        // Saved Progress State
+        let highestLevelPlayed = 1;
+        let completedLevels = new Set(); // Stores solved level indexes
+        let attemptedLevels = new Set(); // Tracks actually started/entered levels
+
+        // Dynamic 2D Board Enclosure Floor Flag
+        let isFloorMap = [];
+
+        // Connected Yellow Wall Group Tracker
+        let yellowWallComponents = [];
+
+        // Particles System
+        let particles = [];
+
+        // Smooth Motion Interpolation States
+        let visualPlayer = { x: 0, y: 0, targetX: 0, targetY: 0, blinkTimer: 0, blinkState: false, facing: 'right' };
+        
+        // Structures definition
+        let visualBlocks = [];
+
+        // Graphics Viewport Targets
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let audioCtx;
+
+        function isDigit(char) {
+            if (!char) return false;
+            return char >= '0' && char <= '9';
+        }
+
+        function isStructureLetter(char) {
+            if (!char) return false;
+            if (char === 'x' || char === 'X' || char === '@' || char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ') return false;
+            return (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z');
+        }
+
+        function parseMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-black">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                .replace(/`(.*?)`/g, '<code class="bg-neutral-100 px-1.5 py-0.5 font-mono text-[11px] font-black tracking-wide border border-neutral-300">$1</code>');
+        }
+
+        function playSynthBeep(frequency, duration, type = 'sine', volume = 0.05) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                // Ignore audio context lock silently
+            }
+        }
+
+        function playSfx(event) {
+            if (event === 'step') {
+                playSynthBeep(180, 0.05, 'triangle', 0.04);
+            } else if (event === 'push') {
+                try {
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.09, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                } catch (e) {}
+            } else if (event === 'dock') {
+                playSynthBeep(440, 0.15, 'sine', 0.08);
+                setTimeout(() => playSynthBeep(554, 0.25, 'sine', 0.08), 80);
+            } else if (event === 'fail') {
+                playSynthBeep(150, 0.15, 'sawtooth', 0.1);
+                setTimeout(() => playSynthBeep(90, 0.3, 'sawtooth', 0.12), 100);
+            } else if (event === 'win') {
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => {
+                        playSynthBeep(freq, 0.3, 'sine', 0.08);
+                    }, idx * 100);
+                });
+            } else if (event === 'enter') {
+                playSynthBeep(261.63, 0.1, 'sine', 0.05);
+                setTimeout(() => playSynthBeep(329.63, 0.12, 'sine', 0.05), 60);
+                setTimeout(() => playSynthBeep(392.00, 0.15, 'sine', 0.05), 120);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            const savedProgress = localStorage.getItem('boxpush_highest_level');
+            if (savedProgress) {
+                highestLevelPlayed = parseInt(savedProgress, 10);
+            }
+
+            const savedCompleted = localStorage.getItem('boxpush_completed_levels');
+            if (savedCompleted) {
+                try {
+                    const parsed = JSON.parse(savedCompleted);
+                    completedLevels = new Set(parsed);
+                } catch (e) {}
+            }
+
+            const savedAttempted = localStorage.getItem('boxpush_attempted_levels');
+            if (savedAttempted) {
+                try {
+                    const parsed = JSON.parse(savedAttempted);
+                    attemptedLevels = new Set(parsed);
+                } catch (e) {}
+            }
+
+            for (let r = 0; r < overworldGrid.length; r++) {
+                for (let c = 0; c < overworldGrid[r].length; c++) {
+                    if (overworldGrid[r][c] === '@') {
+                        overworldPlayerPos = { r, c };
+                        visualOverworldPlayer.x = c;
+                        visualOverworldPlayer.y = r;
+                        visualOverworldPlayer.targetX = c;
+                        visualOverworldPlayer.targetY = r;
+                        overworldCamera.x = c;
+                        overworldCamera.y = r;
+                    }
+                }
+            }
+
+            computeLockComponents();
+
+            if (LAUNCH_TARGET === 0) {
+                loadOverworld();
+            } else if (LAUNCH_TARGET > 0 && LAUNCH_TARGET <= LEVELS.length) {
+                loadLevel(LAUNCH_TARGET - 1);
+            } else {
+                loadTitleScreen();
+            }
+
+            buildLevelsSidebar();
+            renderRulesCodex();
+            
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('resize', handleResize);
+
+            requestAnimationFrame(gameTick);
+        });
+
+        function loadTitleScreen() {
+            gameState = "title";
+            document.getElementById('title-screen').classList.remove('hidden');
+            document.getElementById('btn-menu').classList.add('hidden');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('level-title-display').classList.add('hidden');
+            document.getElementById('overworld-stats').classList.add('hidden');
+            document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('zoom-controls').classList.add('hidden');
+            document.getElementById('mobile-dpad-container').classList.add('hidden');
+            document.getElementById('hud-coordinates').classList.add('hidden');
+        }
+
+        function startGameFromTitle() {
+            document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('level-title-display').classList.remove('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+            
+            loadOverworld();
+            playSfx('enter');
+        }
+
+        function showCredits() {
+            document.getElementById('credits-modal').classList.remove('hidden');
+        }
+
+        function hideCredits() {
+            document.getElementById('credits-modal').classList.add('hidden');
+        }
+
+        function handleResize() {
+            scaleAndRenderCanvas();
+        }
+
+        function switchTab(tabId) {
+            const tabs = ['levels', 'hints', 'rules'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}-btn`);
+                const panel = document.getElementById(`panel-${t}`);
+                if (t === tabId) {
+                    btn.classList.add('bg-white', 'text-black');
+                    btn.classList.remove('hover:bg-neutral-900');
+                    panel.classList.remove('hidden');
+                    panel.classList.add('block');
+                } else {
+                    btn.classList.remove('bg-white', 'text-black');
+                    btn.classList.add('hover:bg-neutral-900');
+                    panel.classList.remove('block');
+                    panel.classList.add('hidden');
+                }
+            });
+        }
+
+        function renderRulesCodex() {
+            const container = document.getElementById('rules-list');
+            container.innerHTML = '';
+
+            RULES_CODEX.forEach(rule => {
+                const block = document.createElement('div');
+                block.className = 'py-5 text-left bg-transparent rounded-none border-b border-neutral-100 last:border-b-0';
+                
+                if (highestLevelPlayed >= rule.unlockAtLevel) {
+                    block.innerHTML = `
+                        <h4 class="font-black text-[11px] uppercase tracking-widest text-black mb-1.5">${rule.name}</h4>
+                        <div class="text-xs font-normal leading-relaxed text-neutral-600">${parseMarkdown(rule.desc)}</div>
+                    `;
+                } else {
+                    block.innerHTML = `
+                        <h4 class="font-black text-[11px] uppercase tracking-widest text-neutral-300 mb-1.5">LOCKED</h4>
+                        <p class="text-xs font-medium italic text-neutral-400">Reach Level ${rule.unlockAtLevel} on the map to unlock this mechanic.</p>
+                    `;
+                }
+                container.appendChild(block);
+            });
+        }
+
+        function toggleBottomHint() {
+            const currentLevel = LEVELS[activeLevelIndex];
+            if (!currentLevel.hint) return;
+            showBottomHudText(currentLevel.hint, 5000);
+        }
+
+        function showBottomHudText(text, duration = 3000) {
+            const hud = document.getElementById('hud-bottom-text');
+            hud.textContent = text;
+            hud.classList.remove('opacity-0');
+            hud.classList.add('opacity-100');
+            
+            if (window.hudTimer) clearTimeout(window.hudTimer);
+            window.hudTimer = setTimeout(() => {
+                hud.classList.remove('opacity-100');
+                hud.classList.add('opacity-0');
+            }, duration);
+        }
+
+        function hideBottomHudText() {
+            const hud = document.getElementById('hud-bottom-text');
+            hud.classList.remove('opacity-100');
+            hud.classList.add('opacity-0');
+        }
+
+        function loadOverworld() {
+            gameState = "overworld";
+            document.getElementById('level-title-display').textContent = "OVERWORLD MAP";
+            document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            
+            // Re-enable global overlays hidden by Title screen launcher
+            document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('level-title-display').classList.remove('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+
+            document.getElementById('overworld-stats').classList.remove('hidden');
+            document.getElementById('overworld-stats').textContent = `${completedLevels.size}/${LEVELS.length}`;
+            document.getElementById('zoom-controls').classList.remove('hidden');
+
+            hideBottomHudText();
+            scaleAndRenderCanvas();
+        }
+
+        function loadLevel(index, preserveHistory = false) {
+            if (index < 0 || index >= LEVELS.length) return;
+            activeLevelIndex = index;
+
+            const actualLevelNum = index + 1;
+            if (actualLevelNum > highestLevelPlayed) {
+                highestLevelPlayed = actualLevelNum;
+                localStorage.setItem('boxpush_highest_level', highestLevelPlayed);
+            }
+            
+            attemptedLevels.add(index);
+            localStorage.setItem('boxpush_attempted_levels', JSON.stringify(Array.from(attemptedLevels)));
+            renderRulesCodex();
+            
+            const selectedLevel = LEVELS[index];
+            
+            activeGrid = selectedLevel.grid.map(row => row.split(''));
+            originalGrid = selectedLevel.grid.map(row => row.split(''));
+
+            if (!preserveHistory) {
+                historyStack = [];
+            }
+            isLevelFailed = false;
+            isLevelSolved = false;
+
+            const topTitleText = document.getElementById('level-title-display');
+            topTitleText.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}`;
+
+            // Re-enable global overlays hidden by Title screen launcher
+            document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('level-title-display').classList.remove('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+
+            document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('btn-back').classList.remove('hidden');
+
+            document.getElementById('overworld-stats').classList.add('hidden');
+            document.getElementById('zoom-controls').classList.add('hidden');
+
+            const hintTitle = document.getElementById('hints-level-title');
+            const hintDesc = document.getElementById('hints-level-desc');
+            const bottomHintWrapper = document.getElementById('bottom-hint-wrapper');
+            
+            hintTitle.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}`;
+            
+            if (selectedLevel.hint && selectedLevel.hint.trim() !== "") {
+                hintDesc.textContent = selectedLevel.hint;
+                bottomHintWrapper.classList.remove('hidden');
+            } else {
+                hintDesc.textContent = "No hint is provided for this level.";
+                bottomHintWrapper.classList.add('hidden');
+            }
+
+            playerPos = { r: 0, c: 0 };
+            for (let r = 0; r < activeGrid.length; r++) {
+                for (let c = 0; c < activeGrid[r].length; c++) {
+                    const cellValue = activeGrid[r][c];
+                    if (cellValue === '@' || cellValue === '+') {
+                        playerPos = { r, c };
+                    }
+                }
+            }
+
+            computeFloorMap();
+            computeYellowWallComponents();
+
+            visualPlayer.x = playerPos.c;
+            visualPlayer.y = playerPos.r;
+            visualPlayer.targetX = playerPos.c;
+            visualPlayer.targetY = playerPos.r;
+            visualPlayer.facing = 'right';
+
+            visualBlocks = [];
+            let blockIdCounter = 0;
+            const rows = activeGrid.length;
+            const cols = getMaxColumns(activeGrid);
+            const visited = Array(rows).fill().map(() => Array(cols).fill(false));
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < (activeGrid[r] ? activeGrid[r].length : 0); c++) {
+                    if (visited[r][c]) continue;
+                    const cellValue = activeGrid[r][c];
+
+                    if (cellValue === '$' || cellValue === '*') {
+                        visited[r][c] = true;
+                        visualBlocks.push({
+                            id: blockIdCounter++,
+                            char: '$',
+                            tiles: [{
+                                x: c,
+                                y: r,
+                                targetX: c,
+                                targetY: r
+                            }],
+                            isTrapped: false
+                        });
+                    } else if (isStructureLetter(cellValue)) {
+                        const compTiles = [];
+                        const queue = [{ r, c }];
+                        visited[r][c] = true;
+
+                        while (queue.length > 0) {
+                            const curr = queue.shift();
+                            compTiles.push(curr);
+
+                            const neighbors = [
+                                { r: -1, c: 0 },
+                                { r: 1, c: 0 },
+                                { r: 0, c: -1 },
+                                { r: 0, c: 1 }
+                            ];
+
+                            for (const offset of neighbors) {
+                                const nr = curr.r + offset.r;
+                                const nc = curr.c + offset.c;
+
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length : 0)) {
+                                    if (!visited[nr][nc] && activeGrid[nr][nc] === cellValue) {
+                                        visited[nr][nc] = true;
+                                        queue.push({ r: nr, c: nc });
+                                    }
+                                }
+                            }
+                        }
+
+                        visualBlocks.push({
+                            id: blockIdCounter++,
+                            char: cellValue,
+                            tiles: compTiles.map(tile => ({
+                                x: tile.c,
+                                y: tile.r,
+                                targetX: tile.c,
+                                targetY: tile.r
+                            })),
+                            isTrapped: false
+                        });
+                    }
+                }
+            }
+
+            particles = [];
+            buildLevelsSidebar();
+            hideSidebar();
+            
+            gameState = "level";
+            playSfx('enter');
+            scaleAndRenderCanvas();
+        }
+
+        function triggerCinematicTransition(direction, onHalfway) {
+            onHalfway();
+        }
+
+        function changeZoom(amount) {
+            targetOverworldZoom = Math.min(2.5, Math.max(0.6, targetOverworldZoom + amount));
+        }
+
+        function computeFloorMap() {
+            const rows = activeGrid.length;
+            const cols = getMaxColumns(activeGrid);
+            
+            isFloorMap = Array(rows).fill().map(() => Array(cols).fill(false));
+            
+            const queue = [];
+            const visited = Array(rows).fill().map(() => Array(cols).fill(false));
+            
+            queue.push({ r: playerPos.r, c: playerPos.c });
+            isFloorMap[playerPos.r][playerPos.c] = true;
+            visited[playerPos.r][playerPos.c] = true;
+            
+            while (queue.length > 0) {
+                const curr = queue.shift();
+                const neighbors = [
+                    { r: -1, c:  0 },
+                    { r:  1, c:  0 },
+                    { r:  0, c: -1 },
+                    { r:  0, c:  1 }
+                ];
+                
+                for (const offset of neighbors) {
+                    const nr = curr.r + offset.r;
+                    const nc = curr.c + offset.c;
+                    
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < activeGrid[nr].length) {
+                        const cell = activeGrid[nr][nc];
+                        if (cell !== '#' && !visited[nr][nc]) {
+                            visited[nr][nc] = true;
+                            isFloorMap[nr][nc] = true;
+                            queue.push({ r: nr, c: nc });
+                        }
+                    }
+                }
+            }
+        }
+
+        function computeLockComponents() {
+            lockComponents = [];
+            const rows = overworldGrid.length;
+            const cols = getMaxColumns(overworldGrid);
+            const visited = Array(rows).fill().map(() => Array(cols).fill(false));
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < (overworldGrid[r] ? overworldGrid[r].length : 0); c++) {
+                    if (overworldGrid[r][c] === 'L' && !visited[r][c]) {
+                        const compCells = [];
+                        const queue = [{ r, c }];
+                        visited[r][c] = true;
+
+                        while (queue.length > 0) {
+                            const curr = queue.shift();
+                            compCells.push(curr);
+
+                            const neighbors = [
+                                { r: -1, c: 0 },
+                                { r: 1, c: 0 },
+                                { r: 0, c: -1 },
+                                { r: 0, c: 1 }
+                            ];
+
+                            for (const offset of neighbors) {
+                                const nr = curr.r + offset.r;
+                                const nc = curr.c + offset.c;
+
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (overworldGrid[nr] ? overworldGrid[nr].length : 0)) {
+                                    if (!visited[nr][nc] && overworldGrid[nr][nc] === 'L') {
+                                        visited[nr][nc] = true;
+                                        queue.push({ r: nr, c: nc });
+                                    }
+                                }
+                            }
+                        }
+
+                        let associatedNode = null;
+                        for (const cell of compCells) {
+                            // Translate cell row-column to Cartesian coordinate lookup key
+                            const x = cell.c;
+                            const y = overworldGrid.length - 1 - cell.r;
+                            const key = `${x},${y}`;
+                            if (OVERWORLD.nodes[key]) {
+                                associatedNode = { ...OVERWORLD.nodes[key], r: cell.r, c: cell.c };
+                                break;
+                            }
+                        }
+
+                        let avgR = 0, avgC = 0;
+                        compCells.forEach(cell => { avgR += cell.r; avgC += cell.c; });
+                        avgR /= compCells.length;
+                        avgC /= compCells.length;
+
+                        let centerCell = compCells[0];
+                        let minDist = Infinity;
+                        compCells.forEach(cell => {
+                            const dist = Math.pow(cell.r - avgR, 2) + Math.pow(cell.c - avgC, 2);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                centerCell = cell;
+                            }
+                        });
+
+                        lockComponents.push({
+                            cells: compCells,
+                            node: associatedNode,
+                            centerCell: centerCell
+                        });
+                    }
+                }
+            }
+        }
+
+        function computeYellowWallComponents() {
+            yellowWallComponents = [];
+            const rows = activeGrid.length;
+            const cols = getMaxColumns(activeGrid);
+            const visited = Array(rows).fill().map(() => Array(cols).fill(false));
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < (activeGrid[r] ? activeGrid[r].length : 0); c++) {
+                    const char = originalGrid[r][c];
+                    if (isDigit(char) && !visited[r][c]) {
+                        const compCells = [];
+                        const queue = [{ r, c }];
+                        visited[r][c] = true;
+
+                        while (queue.length > 0) {
+                            const curr = queue.shift();
+                            compCells.push(curr);
+
+                            const neighbors = [
+                                { r: -1, c: 0 },
+                                { r: 1, c: 0 },
+                                { r: 0, c: -1 },
+                                { r: 0, c: 1 }
+                            ];
+
+                            for (const offset of neighbors) {
+                                const nr = curr.r + offset.r;
+                                const nc = curr.c + offset.c;
+
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length : 0)) {
+                                    if (!visited[nr][nc] && originalGrid[nr][nc] === char) {
+                                        visited[nr][nc] = true;
+                                        queue.push({ r: nr, c: nc });
+                                    }
+                                }
+                            }
+                        }
+
+                        let avgR = 0, avgC = 0;
+                        compCells.forEach(cell => { avgR += cell.r; avgC += cell.c; });
+                        avgR /= compCells.length;
+                        avgC /= compCells.length;
+
+                        let centerCell = compCells[0];
+                        let minDist = Infinity;
+                        compCells.forEach(cell => {
+                            const dist = Math.pow(cell.r - avgR, 2) + Math.pow(cell.c - avgC, 2);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                centerCell = cell;
+                            }
+                        });
+
+                        yellowWallComponents.push({
+                            req: parseInt(char, 10),
+                            char: char,
+                            cells: compCells,
+                            centerCell: centerCell
+                        });
+                    }
+                }
+            }
+        }
+
+        function getMaxColumns(grid) {
+            let max = 0;
+            grid.forEach(row => {
+                if (row.length > max) max = row.length;
+            });
+            return max;
+        }
+
+        function scaleAndRenderCanvas() {
+            const container = canvas.parentElement;
+            const cw = container.clientWidth;
+            const ch = container.clientHeight;
+
+            let gridRows, gridCols;
+            if (gameState === "overworld") {
+                gridRows = overworldGrid.length;
+                gridCols = getMaxColumns(overworldGrid);
+            } else {
+                gridRows = activeGrid.length;
+                gridCols = getMaxColumns(activeGrid);
+            }
+
+            const tileSize = Math.min(Math.floor(cw / gridCols), Math.floor(ch / gridRows), 64);
+            
+            if (gameState === "overworld") {
+                canvas.width = cw;
+                canvas.height = ch;
+            } else {
+                canvas.width = gridCols * tileSize;
+                canvas.height = gridRows * tileSize;
+            }
+        }
+
+        function createExplosion(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.05 + Math.random() * 0.12;
+                particles.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 3 + Math.random() * 5,
+                    color: color,
+                    alpha: 1.0,
+                    decay: 0.03 + Math.random() * 0.04
+                });
+            }
+        }
+
+        function handleKeyDown(e) {
+            const isSidebarOpen = !document.getElementById('sidebar-menu').classList.contains('-translate-x-full');
+            if (isSidebarOpen) return;
+
+            let direction = '';
+            const key = e.key.toLowerCase();
+
+            if (key === 'arrowup' || key === 'w') direction = 'up';
+            if (key === 'arrowdown' || key === 's') direction = 'down';
+            if (key === 'arrowleft' || key === 'a') direction = 'left';
+            if (key === 'arrowright' || key === 'd') direction = 'right';
+
+            if (key === 'r' && gameState === "level") {
+                resetCurrentLevel();
+            }
+            if ((key === 'z' || key === 'u') && gameState === "level") {
+                undoMove();
+            }
+
+            if (direction) {
+                e.preventDefault();
+                handleDirectionalInput(direction);
+            }
+        }
+
+        function getSatisfiedCount() {
+            let count = 0;
+            visualBlocks.forEach(block => {
+                block.tiles.forEach(tile => {
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    if (cellOrig === '.' || cellOrig === '*' || cellOrig === '+') {
+                        count++;
+                    }
+                });
+            });
+            return count;
+        }
+
+        function isYellowWallPassable(r, c) {
+            const cellOrig = originalGrid[r][c];
+            if (isDigit(cellOrig)) {
+                const required = parseInt(cellOrig, 10);
+                const currentSatisfied = getSatisfiedCount();
+                return currentSatisfied === required;
+            }
+            return true;
+        }
+
+        function handleDirectionalInput(direction) {
+            if (gameState === "overworld") {
+                moveOverworldPlayer(direction);
+            } else {
+                movePlayer(direction);
+            }
+        }
+
+        function moveOverworldPlayer(dir) {
+            let dr = 0;
+            let dc = 0;
+
+            if (dir === 'up') { dr = -1; visualOverworldPlayer.facing = 'up'; }
+            if (dir === 'down') { dr = 1; visualOverworldPlayer.facing = 'down'; }
+            if (dir === 'left') { dc = -1; visualOverworldPlayer.facing = 'left'; }
+            if (dir === 'right') { dc = 1; visualOverworldPlayer.facing = 'right'; }
+
+            const nextRow = overworldPlayerPos.r + dr;
+            const nextCol = overworldPlayerPos.c + dc;
+
+            if (nextRow < 0 || nextRow >= overworldGrid.length || nextCol < 0 || nextCol >= overworldGrid[nextRow].length) {
+                return;
+            }
+
+            const cell = overworldGrid[nextRow][nextCol];
+            if (cell === '#') {
+                return; 
+            }
+
+            if (cell === 'L') {
+                const cluster = lockComponents.find(comp => comp.cells.some(c => c.r === nextRow && c.c === nextCol));
+                if (cluster && cluster.node) {
+                    const completedCount = completedLevels.size;
+                    if (completedCount < cluster.node.required) {
+                        playSfx('fail');
+                        return; 
+                    }
+                }
+            }
+
+            // Translate array index destination to Cartesian key for node lookups
+            const destX = nextCol;
+            const destY = overworldGrid.length - 1 - nextRow;
+            const coordKey = `${destX},${destY}`;
+            const targetNode = OVERWORLD.nodes[coordKey];
+
+            if (targetNode) {
+                if (targetNode.type === 'lock') {
+                    const completedCount = completedLevels.size;
+                    if (completedCount < targetNode.required) {
+                        playSfx('fail');
+                        return; 
+                    }
+                }
+            }
+
+            overworldPlayerPos = { r: nextRow, c: nextCol };
+            visualOverworldPlayer.targetX = nextCol;
+            visualOverworldPlayer.targetY = nextRow;
+            playSfx('step');
+
+            if (targetNode && targetNode.type === 'info') {
+                showBottomHudText(targetNode.text, 5000);
+            } else {
+                hideBottomHudText();
+            }
+
+            if (targetNode && targetNode.type === 'level') {
+                const targetLvlIdx = targetNode.index;
+                
+                levelEntryState.preEntryPosition = { r: nextRow - dr, c: nextCol - dc };
+                levelEntryState.entryDirection = dir;
+
+                triggerCinematicTransition(dir, () => {
+                    loadLevel(targetLvlIdx);
+                });
+            }
+        }
+
+        function movePlayer(dir) {
+            if (isLevelFailed || isLevelSolved) return;
+
+            let dr = 0;
+            let dc = 0;
+
+            if (dir === 'up') { dr = -1; visualPlayer.facing = 'up'; }
+            if (dir === 'down') { dr = 1; visualPlayer.facing = 'down'; }
+            if (dir === 'left') { dc = -1; visualPlayer.facing = 'left'; }
+            if (dir === 'right') { dc = 1; visualPlayer.facing = 'right'; }
+
+            const nextRow = playerPos.r + dr;
+            const nextCol = playerPos.c + dc;
+
+            if (nextRow < 0 || nextRow >= activeGrid.length || nextCol < 0 || nextCol >= activeGrid[nextRow].length) {
+                return;
+            }
+
+            const targetCell = activeGrid[nextRow][nextCol];
+            const cellOrig = originalGrid[nextRow][nextCol];
+            const isYellow = isDigit(cellOrig);
+            const isPassable = !isYellow || isYellowWallPassable(nextRow, nextCol);
+
+            const pushedBlock = visualBlocks.find(b => b.tiles.some(t => t.targetX === nextCol && t.targetY === nextRow));
+
+            if (!pushedBlock && (targetCell === ' ' || targetCell === '.' || targetCell === 'x' || isYellow) && isPassable) {
+                saveStateToHistory();
+
+                activeGrid[playerPos.r][playerPos.c] = getBaselineCell(playerPos.r, playerPos.c);
+                
+                if (targetCell === '.') {
+                    activeGrid[nextRow][nextCol] = '+';
+                } else {
+                    activeGrid[nextRow][nextCol] = '@';
+                }
+
+                playerPos = { r: nextRow, c: nextCol };
+                visualPlayer.targetX = nextCol;
+                visualPlayer.targetY = nextRow;
+
+                playSfx('step');
+            } 
+            else if (pushedBlock) {
+                let canPush = true;
+
+                for (const tile of pushedBlock.tiles) {
+                    const destR = tile.targetY + dr;
+                    const destC = tile.targetX + dc;
+
+                    if (destR < 0 || destR >= activeGrid.length || destC < 0 || destC >= (activeGrid[destR] ? activeGrid[destR].length : 0)) {
+                        canPush = false;
+                        break;
+                    }
+
+                    const destCell = activeGrid[destR][destC];
+                    const destOrig = originalGrid[destR][destC];
+                    const isDestYellow = isDigit(destOrig);
+                    const isDestPassable = !isDestYellow || isYellowWallPassable(destR, destC);
+
+                    // Player position will be vacated, so we can push into it
+                    const isPlayerCell = (destR === playerPos.r && destC === playerPos.c);
+
+                    const isValidTileType = (isPlayerCell || destCell === ' ' || destCell === '.' || destCell === 'x' || isDestYellow) && isDestPassable;
+
+                    const otherBlockCollision = visualBlocks.find(b => b.id !== pushedBlock.id && b.tiles.some(t => t.targetX === destC && t.targetY === destR));
+
+                    const isOccupiedBySelf = pushedBlock.tiles.some(t => t.targetX === destC && t.targetY === destR);
+
+                    if ((!isValidTileType && !isOccupiedBySelf) || (otherBlockCollision && !isOccupiedBySelf)) {
+                        canPush = false;
+                        break;
+                    }
+                }
+
+                if (canPush) {
+                    saveStateToHistory();
+
+                    pushedBlock.tiles.forEach(tile => {
+                        activeGrid[tile.targetY][tile.targetX] = getBaselineCell(tile.targetY, tile.targetX);
+                    });
+
+                    let hasGoalContact = false;
+                    let hasTrapContact = false;
+
+                    pushedBlock.tiles.forEach(tile => {
+                        tile.targetX += dc;
+                        tile.targetY += dr;
+
+                        const newCellOrig = originalGrid[tile.targetY][tile.targetX];
+                        if (newCellOrig === '.') hasGoalContact = true;
+                        if (newCellOrig === 'x') hasTrapContact = true;
+                    });
+
+                    pushedBlock.tiles.forEach(tile => {
+                        const cellOrig = originalGrid[tile.targetY][tile.targetX];
+                        const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                        activeGrid[tile.targetY][tile.targetX] = isGoal ? '*' : pushedBlock.char;
+                    });
+
+                    activeGrid[playerPos.r][playerPos.c] = getBaselineCell(playerPos.r, playerPos.c);
+                    activeGrid[nextRow][nextCol] = originalGrid[nextRow][nextCol] === '.' ? '+' : '@';
+
+                    playerPos = { r: nextRow, c: nextCol };
+                    visualPlayer.targetX = nextCol;
+                    visualPlayer.targetY = nextRow;
+
+                    pushedBlock.tiles.forEach(tile => {
+                        if (hasTrapContact) {
+                            createExplosion(tile.targetX, tile.targetY, '#ef4444', 12);
+                        } else if (hasGoalContact) {
+                            createExplosion(tile.targetX, tile.targetY, '#22c55e', 10);
+                        } else {
+                            createExplosion(tile.targetX, tile.targetY, '#555555', 4);
+                        }
+                    });
+
+                    if (hasTrapContact) {
+                        playSfx('fail');
+                    } else if (hasGoalContact) {
+                        playSfx('dock');
+                    } else {
+                        playSfx('push');
+                    }
+                }
+            }
+
+            checkRules();
+        }
+
+        function checkRules() {
+            const satisfied = getSatisfiedCount();
+
+            let trapTriggered = false;
+            visualBlocks.forEach(block => {
+                let blockTrapped = false;
+                block.tiles.forEach(tile => {
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    if (cellOrig === 'x') {
+                        blockTrapped = true;
+                        trapTriggered = true;
+                    }
+                });
+                block.isTrapped = blockTrapped;
+            });
+
+            if (trapTriggered) {
+                triggerFailureState();
+                return;
+            }
+
+            const playerOrigCell = originalGrid[playerPos.r][playerPos.c];
+            if (isDigit(playerOrigCell)) {
+                const req = parseInt(playerOrigCell, 10);
+                if (satisfied !== req) {
+                    triggerFailureState();
+                    return;
+                }
+            }
+
+            let boxTrappedInWall = false;
+            visualBlocks.forEach(block => {
+                let blockTrappedInWall = false;
+                block.tiles.forEach(tile => {
+                    const boxOrigCell = originalGrid[tile.targetY]?.[tile.targetX];
+                    if (isDigit(boxOrigCell)) {
+                        const req = parseInt(boxOrigCell, 10);
+                        if (satisfied !== req) {
+                            blockTrappedInWall = true;
+                            boxTrappedInWall = true;
+                        }
+                    }
+                });
+                if (blockTrappedInWall) {
+                    block.isTrapped = true;
+                }
+            });
+
+            if (boxTrappedInWall) {
+                triggerFailureState();
+                return;
+            }
+
+            checkVictory();
+        }
+
+        function getBaselineCell(r, c) {
+            const originalVal = originalGrid[r][c];
+            if (originalVal === '.' || originalVal === '*' || originalVal === '+') return '.';
+            if (originalVal === 'x') return 'x';
+            if (isDigit(originalVal)) return originalVal;
+            return ' ';
+        }
+
+        function saveStateToHistory() {
+            historyStack.push({
+                grid: activeGrid.map(row => [...row]),
+                player: { ...playerPos },
+                blocks: visualBlocks.map(b => ({
+                    ...b,
+                    tiles: b.tiles.map(t => ({ ...t }))
+                }))
+            });
+            if (historyStack.length > 250) {
+                historyStack.shift();
+            }
+        }
+
+        function undoMove() {
+            if (gameState !== "level" || historyStack.length === 0 || isLevelSolved) return;
+            const previousState = historyStack.pop();
+
+            activeGrid = previousState.grid;
+            playerPos = previousState.player;
+            visualBlocks = previousState.blocks;
+
+            visualPlayer.targetX = playerPos.c;
+            visualPlayer.targetY = playerPos.r;
+
+            isLevelFailed = false;
+            playSfx('step');
+        }
+
+        function resetCurrentLevel() {
+            if (gameState !== "level" || isLevelSolved) return;
+            saveStateToHistory();
+            loadLevel(activeLevelIndex, true); 
+        }
+
+        function triggerFailureState() {
+            isLevelFailed = true;
+            playSfx('fail');
+        }
+
+        function checkVictory() {
+            if (isLevelFailed) return;
+
+            let totalGoals = 0;
+            for (let r = 0; r < originalGrid.length; r++) {
+                for (let c = 0; c < originalGrid[r].length; c++) {
+                    const cell = originalGrid[r][c];
+                    if (cell === '.' || cell === '*' || cell === '+') {
+                        totalGoals++;
+                    }
+                }
+            }
+
+            const totalBoxes = visualBlocks.reduce((acc, b) => acc + b.tiles.length, 0);
+            const satisfied = getSatisfiedCount();
+
+            const isWon = (satisfied === totalGoals && totalGoals > 0) || (satisfied === totalBoxes && totalBoxes > 0);
+
+            if (isWon && !isLevelFailed) {
+                isLevelSolved = true;
+                playSfx('win');
+
+                completedLevels.add(activeLevelIndex);
+                localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
+                buildLevelsSidebar();
+
+                // 0.8s lock delay upon winning
+                setTimeout(() => {
+                    exitToOverworld();
+                }, 800);
+            }
+        }
+
+        function exitToOverworld() {
+            const dir = levelEntryState.entryDirection;
+            
+            triggerCinematicTransition(dir, () => {
+                overworldPlayerPos = { ...levelEntryState.preEntryPosition };
+                visualOverworldPlayer.x = overworldPlayerPos.c;
+                visualOverworldPlayer.y = overworldPlayerPos.r;
+                visualOverworldPlayer.targetX = overworldPlayerPos.c;
+                visualOverworldPlayer.targetY = overworldPlayerPos.r;
+
+                loadOverworld();
+                buildLevelsSidebar();
+            });
+        }
+
+        function exitToOverworldFromMenu() {
+            hideSidebar();
+            triggerCinematicTransition('up', () => {
+                loadOverworld();
+            });
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar-menu');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function hideSidebar() {
+            document.getElementById('sidebar-menu').classList.add('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.add('hidden');
+        }
+
+        function buildLevelsSidebar() {
+            const container = document.getElementById('sidebar-level-list');
+            container.innerHTML = '';
+
+            LEVELS.forEach((level, idx) => {
+                const row = document.createElement('button');
+                const isCompleted = completedLevels.has(idx);
+                const isAttempted = attemptedLevels.has(idx) && !isCompleted;
+
+                // Color coding level rows by play states (alternating shades)
+                let bgColor = "bg-white text-black";
+                if (isCompleted) {
+                    bgColor = idx % 2 === 0 ? "bg-green-100 hover:bg-green-200 text-black" : "bg-green-200 hover:bg-green-300 text-black";
+                } else if (isAttempted) {
+                    bgColor = idx % 2 === 0 ? "bg-yellow-100 hover:bg-yellow-200 text-black" : "bg-yellow-200 hover:bg-yellow-300 text-black";
+                } else {
+                    bgColor = idx % 2 === 0 ? "bg-white hover:bg-neutral-100 text-black" : "bg-neutral-100 hover:bg-neutral-200 text-black";
+                }
+
+                if (gameState === "level" && idx === activeLevelIndex) {
+                    bgColor = "bg-black hover:bg-neutral-800 text-white";
+                }
+
+                row.className = `w-full text-left px-6 py-5 font-bold text-xs border-b border-black transition-colors duration-150 rounded-none flex items-center justify-between ${bgColor}`;
+                
+                row.onclick = () => {
+                    hideSidebar();
+                    loadLevel(idx);
+                };
+
+                row.innerHTML = `
+                    <span class="tracking-widest uppercase">${idx + 1}. ${level.name}</span>
+                    <span class="font-extrabold text-[10px] opacity-65">${level.grid.length}x${getMaxColumns(level.grid)}</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function gameTick() {
+            updateTick();
+            drawCanvas();
+            requestAnimationFrame(gameTick);
+        }
+
+        function updateTick() {
+            const lerpSpeed = 0.22;
+
+            if (gameState === "overworld") {
+                visualOverworldPlayer.x += (visualOverworldPlayer.targetX - visualOverworldPlayer.x) * lerpSpeed;
+                visualOverworldPlayer.y += (visualOverworldPlayer.targetY - visualOverworldPlayer.y) * lerpSpeed;
+
+                const camLerpSpeed = 0.1;
+                overworldCamera.x += (visualOverworldPlayer.x - overworldCamera.x) * camLerpSpeed;
+                overworldCamera.y += (visualOverworldPlayer.y - overworldCamera.y) * camLerpSpeed;
+
+                const zoomLerpSpeed = 0.1;
+                overworldZoom += (targetOverworldZoom - overworldZoom) * zoomLerpSpeed;
+
+                visualOverworldPlayer.blinkTimer--;
+                if (visualOverworldPlayer.blinkTimer <= 0) {
+                    visualOverworldPlayer.blinkState = !visualOverworldPlayer.blinkState;
+                    visualOverworldPlayer.blinkTimer = visualOverworldPlayer.blinkState ? 10 : (120 + Math.random() * 200);
+                }
+
+                // Cartesian HUD displays: X = col, Y = Height - 1 - row
+                const cartesianX = Math.round(visualOverworldPlayer.x);
+                const cartesianY = overworldGrid.length - 1 - Math.round(visualOverworldPlayer.y);
+                document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
+            } else {
+                visualPlayer.x += (visualPlayer.targetX - visualPlayer.x) * lerpSpeed;
+                visualPlayer.y += (visualPlayer.targetY - visualPlayer.y) * lerpSpeed;
+
+                visualPlayer.blinkTimer--;
+                if (visualPlayer.blinkTimer <= 0) {
+                    visualPlayer.blinkState = !visualPlayer.blinkState;
+                    visualPlayer.blinkTimer = visualPlayer.blinkState ? 10 : (120 + Math.random() * 200);
+                }
+
+                visualBlocks.forEach(block => {
+                    block.tiles.forEach(tile => {
+                        tile.x += (tile.targetX - tile.x) * lerpSpeed;
+                        tile.y += (tile.targetY - tile.y) * lerpSpeed;
+                    });
+                });
+
+                // Cartesian levels coordinates display
+                const cartesianX = Math.round(visualPlayer.x);
+                const cartesianY = activeGrid.length - 1 - Math.round(visualPlayer.y);
+                document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState === "overworld") {
+                drawOverworldMap();
+            } else {
+                drawLevelMap();
+            }
+        }
+
+        function drawOverworldMap() {
+            const gridRows = overworldGrid.length;
+            const gridCols = getMaxColumns(overworldGrid);
+
+            const viewCols = 13;
+            const tileSize = (canvas.width / viewCols) * overworldZoom;
+
+            function getOverworldCellType(r, c) {
+                if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return 'VOID';
+                const cell = overworldGrid[r][c];
+                if (cell === '#') return 'VOID';
+                if (cell === 'L') return 'LOCK';
+                return 'FLOOR';
+            }
+
+            ctx.save();
+            
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.translate(
+                -overworldCamera.x * tileSize - tileSize / 2, 
+                -overworldCamera.y * tileSize - tileSize / 2
+            );
+
+            // Draw base tiles
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+                    const type = getOverworldCellType(r, c);
+
+                    if (type === 'VOID') {
+                        ctx.fillStyle = '#dcdcdc';
+                    } else if (type === 'LOCK') {
+                        ctx.fillStyle = '#f3f4f6'; 
+                    } else {
+                        ctx.fillStyle = '#ffffff';
+                    }
+                    ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
+                }
+            }
+
+            // Draw path gridlines on empty corridor spaces
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+                    const type = getOverworldCellType(r, c);
+
+                    if (type === 'FLOOR') {
+                        ctx.strokeStyle = '#f0f0f0';
+                        ctx.lineWidth = 1;
+
+                        if (getOverworldCellType(r, c - 1) === 'FLOOR') {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
+                        }
+                        if (getOverworldCellType(r - 1, c) === 'FLOOR') {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // Draw clean architectural outer borders
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+                    const type = getOverworldCellType(r, c);
+
+                    if (type !== 'VOID') {
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 2.5;
+
+                        if (getOverworldCellType(r - 1, c) !== type) {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
+                        }
+                        if (getOverworldCellType(r + 1, c) !== type) {
+                            ctx.beginPath(); ctx.moveTo(x, y + tileSize); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
+                        }
+                        if (getOverworldCellType(r, c - 1) !== type) {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
+                        }
+                        if (getOverworldCellType(r, c + 1) !== type) {
+                            ctx.beginPath(); ctx.moveTo(x + tileSize, y); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // Draw custom floor connectors
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+                    const cell = overworldGrid[r][c];
+
+                    if (cell === '-' || cell === '|') {
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        if (cell === '-') {
+                            ctx.moveTo(x, y + tileSize / 2);
+                            ctx.lineTo(x + tileSize, y + tileSize / 2);
+                        } else {
+                            ctx.moveTo(x + tileSize / 2, y);
+                            ctx.lineTo(x + tileSize / 2, y + tileSize);
+                        }
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw interactive levels and Cartesian lock info
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    // Translate current cell r,c to Cartesian coordinate key
+                    const cartX = c;
+                    const cartY = gridRows - 1 - r;
+                    const coordKey = `${cartX},${cartY}`;
+                    const node = OVERWORLD.nodes[coordKey];
+                    const cell = overworldGrid[r][c];
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    if (node && node.type === 'level') {
+                        const isCompleted = completedLevels.has(node.index);
+                        
+                        ctx.fillStyle = isCompleted ? '#22c55e' : '#ffffff';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 1.5;
+
+                        const padding = tileSize * 0.15;
+                        const size = tileSize - padding * 2;
+                        ctx.fillRect(x + padding, y + padding, size, size);
+                        ctx.strokeRect(x + padding, y + padding, size, size);
+
+                        ctx.fillStyle = isCompleted ? '#ffffff' : '#000000';
+                        ctx.font = `bold ${tileSize * 0.3}px 'Inter', sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(node.label, x + tileSize / 2, y + tileSize / 2);
+
+                    } else if (node && node.type === 'info') {
+                        const radius = tileSize * 0.35;
+                        const cx = x + tileSize / 2;
+                        const cy = y + tileSize / 2;
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#000000';
+                        ctx.font = `bold ${tileSize * 0.35}px 'Inter', sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText("i", cx, cy);
+
+                    } else if (cell === 'L') {
+                        const cluster = lockComponents.find(comp => comp.cells.some(cellPos => cellPos.r === r && cellPos.c === c));
+                        if (cluster) {
+                            const required = cluster.node ? cluster.node.required : 0;
+                            const completedCount = completedLevels.size;
+                            const isUnlocked = completedCount >= required;
+
+                            ctx.fillStyle = isUnlocked ? 'rgba(34, 197, 94, 0.4)' : '#facc15';
+                            ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
+
+                            if (cluster.centerCell && cluster.centerCell.r === r && cluster.centerCell.c === c && required > 0) {
+                                ctx.fillStyle = '#000000';
+                                ctx.font = `bold ${tileSize * 0.28}px 'Inter', sans-serif`;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(`${completedCount}/${required}`, x + tileSize / 2, y + tileSize / 2);
+                            }
+                        }
+                    }
+                }
+            }
+
+            const opX = visualOverworldPlayer.x * tileSize;
+            const opY = visualOverworldPlayer.y * tileSize;
+            const opMargin = tileSize * 0.14;
+            const opSize = tileSize - opMargin * 2;
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(opX + opMargin, opY + opMargin, opSize, opSize);
+
+            if (!visualOverworldPlayer.blinkState) {
+                const eyeW = opSize * 0.16;
+                const eyeH = opSize * 0.16;
+                
+                let eyeYOffset = opY + opMargin + (opSize * 0.28);
+                let leftEyeX = opX + opMargin + (opSize * 0.22);
+                let rightEyeX = opX + opMargin + (opSize * 0.62);
+
+                if (visualOverworldPlayer.facing === 'left') {
+                    leftEyeX -= 3; rightEyeX -= 3;
+                } else if (visualOverworldPlayer.facing === 'right') {
+                    leftEyeX += 3; rightEyeX += 3;
+                } else if (visualOverworldPlayer.facing === 'up') {
+                    eyeYOffset -= 3;
+                } else if (visualOverworldPlayer.facing === 'down') {
+                    eyeYOffset += 3;
+                }
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(leftEyeX, eyeYOffset, eyeW, eyeH);
+                ctx.fillRect(rightEyeX, eyeYOffset, eyeW, eyeH);
+            }
+
+            ctx.restore();
+        }
+
+        function drawLevelMap() {
+            const gridRows = activeGrid.length;
+            const gridCols = getMaxColumns(activeGrid);
+            const tileSize = canvas.width / gridCols;
+
+            function getCellType(r, c) {
+                if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return 'VOID';
+                if (!isFloorMap[r] || !isFloorMap[r][c]) return 'VOID';
+                const orig = originalGrid[r][c];
+                if (isDigit(orig)) return 'YELLOW_' + orig;
+                return 'FLOOR';
+            }
+
+            // Draw base tiles
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    const type = getCellType(r, c);
+                    if (type === 'VOID') {
+                        ctx.fillStyle = '#dcdcdc';
+                        ctx.fillRect(x, y, tileSize, tileSize);
+                    } else if (type.startsWith('YELLOW_')) {
+                        const cellOrig = originalGrid[r][c];
+                        const req = parseInt(cellOrig, 10);
+                        const currentSatisfied = getSatisfiedCount();
+                        const isPassable = currentSatisfied === req;
+
+                        ctx.fillStyle = isPassable ? '#facc15' : '#b45309';
+                        ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
+                    } else {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(x, y, tileSize, tileSize);
+                    }
+                }
+            }
+
+            // Draw internal grids
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    if (getCellType(r, c) === 'FLOOR') {
+                        ctx.strokeStyle = '#f0f0f0';
+                        ctx.lineWidth = 1;
+
+                        if (getCellType(r, c - 1) === 'FLOOR') {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
+                        }
+                        if (getCellType(r - 1, c) === 'FLOOR') {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // Draw solid high-contrast borders
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    const myType = getCellType(r, c);
+                    if (myType !== 'VOID') {
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 2.5;
+
+                        if (getCellType(r - 1, c) !== myType) {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
+                        }
+                        if (getCellType(r + 1, c) !== myType) {
+                            ctx.beginPath(); ctx.moveTo(x, y + tileSize); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
+                        }
+                        if (getCellType(r, c - 1) !== myType) {
+                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
+                        }
+                        if (getCellType(r, c + 1) !== myType) {
+                            ctx.beginPath(); ctx.moveTo(x + tileSize, y); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            // Draw goals and traps inside level maps
+            for (let r = 0; r < gridRows; r++) {
+                for (let c = 0; c < gridCols; c++) {
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    const myType = getCellType(r, c);
+                    if (myType === 'FLOOR') {
+                        const cellOrig = originalGrid[r][c] || ' ';
+                        const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                        const isTrap = cellOrig === 'x';
+
+                        if (isGoal) {
+                            const gSize = tileSize * 0.22;
+                            ctx.fillStyle = '#22c55e';
+                            ctx.fillRect(x + (tileSize - gSize) / 2, y + (tileSize - gSize) / 2, gSize, gSize);
+                        } else if (isTrap) {
+                            ctx.strokeStyle = '#ef4444';
+                            ctx.lineWidth = 2;
+                            const margin = tileSize * 0.35;
+                            ctx.strokeRect(x + margin, y + margin, tileSize - margin * 2, tileSize - margin * 2);
+                            ctx.beginPath();
+                            ctx.moveTo(x + tileSize/2, y + margin - 4); ctx.lineTo(x + tileSize/2, y + margin);
+                            ctx.moveTo(x + tileSize/2, y + tileSize - margin); ctx.lineTo(x + tileSize/2, y + tileSize - margin + 4);
+                            ctx.moveTo(x + margin - 4, y + tileSize/2); ctx.lineTo(x + margin, y + tileSize/2);
+                            ctx.moveTo(x + tileSize - margin, y + tileSize/2); ctx.lineTo(x + tileSize - margin + 4, y + tileSize/2);
+                            ctx.stroke();
+                        }
+                    } else if (myType.startsWith('YELLOW_')) {
+                        const cellOrig = originalGrid[r][c];
+                        const req = parseInt(cellOrig, 10);
+                        const currentSatisfied = getSatisfiedCount();
+                        const isPassable = currentSatisfied === req;
+
+                        const myComp = yellowWallComponents.find(comp => comp.cells.some(cell => cell.r === r && cell.c === c));
+                        if (myComp && myComp.centerCell.r === r && myComp.centerCell.c === c) {
+                            ctx.fillStyle = isPassable ? '#000000' : '#ffffff';
+                            ctx.font = `900 ${tileSize * 0.38}px 'Inter', sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(cellOrig, x + tileSize/2, y + tileSize/2);
+                        }
+                    }
+                }
+            }
+
+            // Draw puzzle blocks with clean double-outlines
+            visualBlocks.forEach(block => {
+                const margin = tileSize * 0.08;
+                const innerMargin = Math.max(2.5, tileSize * 0.06);
+
+                const hasTile = (tx, ty) => block.tiles.some(t => t.targetX === tx && t.targetY === ty);
+
+                block.tiles.forEach(tile => {
+                    const tx = tile.targetX;
+                    const ty = tile.targetY;
+
+                    const T = hasTile(tx, ty - 1);
+                    const B = hasTile(tx, ty + 1);
+                    const L = hasTile(tx - 1, ty);
+                    const R = hasTile(tx + 1, ty);
+
+                    let x1 = tile.x * tileSize;
+                    let y1 = tile.y * tileSize;
+                    let x2 = (tile.x + 1) * tileSize;
+                    let y2 = (tile.y + 1) * tileSize;
+
+                    if (!L) x1 += margin;
+                    if (!R) x2 -= margin;
+                    if (!T) y1 += margin;
+                    if (!B) y2 -= margin;
+
+                    const seamOverdrive = 0.5;
+                    if (L) x1 -= seamOverdrive;
+                    if (R) x2 += seamOverdrive;
+                    if (T) y1 -= seamOverdrive;
+                    if (B) y2 += seamOverdrive;
+
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    const isTileDocked = (cellOrig === '.' || cellOrig === '*' || cellOrig === '+');
+
+                    if (block.isTrapped) {
+                        ctx.fillStyle = '#ef4444'; 
+                    } else if (isTileDocked) {
+                        ctx.fillStyle = '#22c55e'; 
+                    } else {
+                        ctx.fillStyle = '#737373'; 
+                    }
+
+                    ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+                });
+
+                const drawOutline = (pad, strokeStyle, lineWidth) => {
+                    ctx.strokeStyle = strokeStyle;
+                    ctx.lineWidth = lineWidth;
+                    ctx.lineCap = 'square';
+                    ctx.lineJoin = 'miter';
+
+                    block.tiles.forEach(tile => {
+                        const tx = tile.targetX;
+                        const ty = tile.targetY;
+                        const visualX = tile.x * tileSize;
+                        const visualY = tile.y * tileSize;
+
+                        const T = hasTile(tx, ty - 1);
+                        const B = hasTile(tx, ty + 1);
+                        const L = hasTile(tx - 1, ty);
+                        const R = hasTile(tx + 1, ty);
+                        const TL = hasTile(tx - 1, ty - 1);
+                        const TR = hasTile(tx + 1, ty - 1);
+                        const BL = hasTile(tx - 1, ty + 1);
+                        const BR = hasTile(tx + 1, ty + 1);
+
+                        if (!T) {
+                            let x1 = visualX + (L ? (TL ? -pad : 0) : pad);
+                            let x2 = visualX + tileSize + (R ? (TR ? pad : 0) : -pad);
+                            let y = visualY + pad;
+                            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+                        }
+
+                        if (!B) {
+                            let x1 = visualX + (L ? (BL ? -pad : 0) : pad);
+                            let x2 = visualX + tileSize + (R ? (BR ? pad : 0) : -pad);
+                            let y = visualY + tileSize - pad;
+                            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+                        }
+
+                        if (!L) {
+                            let y1 = visualY + (T ? (TL ? -pad : 0) : pad);
+                            let y2 = visualY + tileSize + (B ? (BL ? pad : 0) : -pad);
+                            let x = visualX + pad;
+                            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+                        }
+
+                        if (!R) {
+                            let y1 = visualY + (T ? (TR ? -pad : 0) : pad);
+                            let y2 = visualY + tileSize + (B ? (BR ? pad : 0) : -pad);
+                            let x = visualX + tileSize - pad;
+                            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+                        }
+                    });
+                };
+
+                drawOutline(margin, '#000000', 1.5);
+                drawOutline(margin + innerMargin, '#ffffff', 0.8);
+            });
+
+            const pX = visualPlayer.x * tileSize;
+            const pY = visualPlayer.y * tileSize;
+            const pMargin = tileSize * 0.14;
+            const pSize = tileSize - pMargin * 2;
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(pX + pMargin, pY + pMargin, pSize, pSize);
+
+            if (!visualPlayer.blinkState) {
+                const eyeW = pSize * 0.16;
+                const eyeH = pSize * 0.16;
+                
+                let eyeYOffset = pY + pMargin + (pSize * 0.28);
+                let leftEyeX = pX + pMargin + (pSize * 0.22);
+                let rightEyeX = pX + pMargin + (pSize * 0.62);
+
+                if (visualPlayer.facing === 'left') {
+                    leftEyeX -= 3; rightEyeX -= 3;
+                } else if (visualPlayer.facing === 'right') {
+                    leftEyeX += 3; rightEyeX += 3;
+                } else if (visualPlayer.facing === 'up') {
+                    eyeYOffset -= 3;
+                } else if (visualPlayer.facing === 'down') {
+                    eyeYOffset += 3;
+                }
+
+                if (isLevelFailed) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2.5;
+
+                    ctx.beginPath();
+                    ctx.moveTo(leftEyeX - 1, eyeYOffset + eyeH/2); ctx.lineTo(leftEyeX + eyeW + 1, eyeYOffset + eyeH/2);
+                    ctx.moveTo(rightEyeX - 1, eyeYOffset + eyeH/2); ctx.lineTo(rightEyeX + eyeW + 1, eyeYOffset + eyeH/2);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(leftEyeX, eyeYOffset, eyeW, eyeH);
+                    ctx.fillRect(rightEyeX, eyeYOffset, eyeW, eyeH);
+                }
+            }
+
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.fillRect((p.x * tileSize) - p.size/2, (p.y * tileSize) - p.size/2, p.size, p.size);
+                ctx.restore();
+            });
+        }
+    </script>
+</body>
+</html>
