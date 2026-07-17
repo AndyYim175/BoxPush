@@ -33,12 +33,17 @@
 <body class="h-full w-full overflow-hidden flex flex-col justify-between items-center relative bg-[#dcdcdc]">
 
     <!-- Floating Left-Center Menu & Back Button Group -->
-    <div class="fixed top-6 left-6 z-40 flex items-center space-x-2">
-        <button id="btn-menu" onclick="toggleSidebar()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Open Menu">
-            <span class="material-symbols-outlined select-none text-xl leading-none">menu</span>
-        </button>
-        <button id="btn-back" onclick="exitToOverworld()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Back to Overworld">
-            <span class="material-symbols-outlined select-none text-xl leading-none">arrow_back</span>
+    <div class="fixed top-6 left-6 z-40 flex flex-col space-y-2">
+        <div class="flex items-center space-x-2">
+            <button id="btn-menu" onclick="toggleSidebar()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Open Menu">
+                <span class="material-symbols-outlined select-none text-xl leading-none">menu</span>
+            </button>
+            <button id="btn-back" onclick="exitToOverworld()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Back to Overworld">
+                <span class="material-symbols-outlined select-none text-xl leading-none">arrow_back</span>
+            </button>
+        </div>
+        <button id="btn-customize" onclick="toggleCustomizeModal()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Customize Character">
+            <span class="material-symbols-outlined select-none text-xl leading-none">palette</span>
         </button>
     </div>
 
@@ -123,6 +128,26 @@
             <div id="panel-rules" class="hidden p-6 space-y-6">
                 <div id="rules-list" class="divide-y divide-neutral-200">
                     <!-- Dynamic rule elements loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Clear Data Footer Section -->
+        <div class="p-4 border-t border-black bg-neutral-50">
+            <div id="clear-normal-view" class="block">
+                <button onclick="showClearConfirm()" class="w-full py-2.5 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors font-black text-[10px] tracking-widest uppercase rounded-none">
+                    CLEAR SAVE DATA
+                </button>
+            </div>
+            <div id="clear-confirm-view" class="hidden space-y-2 text-center">
+                <p class="text-[9px] font-black text-red-600 uppercase tracking-widest leading-none">ARE YOU SURE? REMOVES ALL PROGRESS!</p>
+                <div class="flex space-x-1">
+                    <button onclick="confirmClearData()" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-black text-[9px] tracking-widest uppercase rounded-none">
+                        YES, RESET
+                    </button>
+                    <button onclick="cancelClearData()" class="flex-1 py-2 border border-black bg-white hover:bg-neutral-100 text-black font-black text-[9px] tracking-widest uppercase rounded-none">
+                        CANCEL
+                    </button>
                 </div>
             </div>
         </div>
@@ -219,6 +244,43 @@
         </div>
     </div>
 
+    <!-- Customize Character Modal -->
+    <div id="customize-modal" class="fixed inset-0 z-50 flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden">
+        <div class="bg-white border border-black p-8 max-w-sm w-full text-center relative rounded-none">
+            <h2 class="font-black text-sm tracking-widest uppercase text-black mb-4">CUSTOMIZE</h2>
+            
+            <!-- Body Color -->
+            <div class="mb-5 text-left">
+                <span class="font-black text-[10px] tracking-widest uppercase block mb-2 text-neutral-400">Body Paint</span>
+                <div class="flex items-center space-x-1.5 flex-wrap gap-y-1.5">
+                    <button onclick="setBodyColor('#000000')" class="w-7 h-7 bg-black border border-neutral-300 hover:scale-105 transition-transform" title="Black"></button>
+                    <button onclick="setBodyColor('#3b82f6')" class="w-7 h-7 bg-blue-500 border border-neutral-300 hover:scale-105 transition-transform" title="Blue"></button>
+                    <button onclick="setBodyColor('#ef4444')" class="w-7 h-7 bg-red-500 border border-neutral-300 hover:scale-105 transition-transform" title="Red"></button>
+                    <button onclick="setBodyColor('#10b981')" class="w-7 h-7 bg-emerald-500 border border-neutral-300 hover:scale-105 transition-transform" title="Emerald"></button>
+                    <button onclick="setBodyColor('#f59e0b')" class="w-7 h-7 bg-amber-500 border border-neutral-300 hover:scale-105 transition-transform" title="Amber"></button>
+                    <input type="color" id="body-picker" onchange="setBodyColor(this.value)" class="w-7 h-7 p-0 border border-neutral-300 cursor-pointer rounded-none" title="Custom Picker">
+                </div>
+            </div>
+            
+            <!-- Eye Color -->
+            <div class="mb-6 text-left">
+                <span class="font-black text-[10px] tracking-widest uppercase block mb-2 text-neutral-400">Eyes / Visor</span>
+                <div class="flex items-center space-x-1.5 flex-wrap gap-y-1.5">
+                    <button onclick="setEyeColor('#ffffff')" class="w-7 h-7 bg-white border border-neutral-300 hover:scale-105 transition-transform" title="White"></button>
+                    <button onclick="setEyeColor('#facc15')" class="w-7 h-7 bg-yellow-400 border border-neutral-300 hover:scale-105 transition-transform" title="Yellow"></button>
+                    <button onclick="setEyeColor('#22c55e')" class="w-7 h-7 bg-green-500 border border-neutral-300 hover:scale-105 transition-transform" title="Green"></button>
+                    <button onclick="setEyeColor('#00ffff')" class="w-7 h-7 bg-cyan-400 border border-neutral-300 hover:scale-105 transition-transform" title="Cyan"></button>
+                    <button onclick="setEyeColor('#ec4899')" class="w-7 h-7 bg-pink-500 border border-neutral-300 hover:scale-105 transition-transform" title="Pink"></button>
+                    <input type="color" id="eye-picker" onchange="setEyeColor(this.value)" class="w-7 h-7 p-0 border border-neutral-300 cursor-pointer rounded-none" title="Custom Picker">
+                </div>
+            </div>
+
+            <button onclick="toggleCustomizeModal()" class="w-full py-3 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
+                SAVE & CLOSE
+            </button>
+        </div>
+    </div>
+
     <script>
         /************************************************************************
          * LAUNCH CONFIGURATION TARGET
@@ -227,6 +289,13 @@
          *  1+ = Launch directly on that Level (e.g. 1 loads activeLevelIndex 0)
          ************************************************************************/
         const LAUNCH_TARGET = -1;
+
+        /************************************************************************
+         * ENTRANCE MODE CONFIGURATION
+         *  0 = Free access: enter any level instantly via the BoxPush Menu
+         *  1 = Progressive access: can only enter levels once they are attempted/played on map
+         ************************************************************************/
+        const ENTRANCE_MODE = 1;
 
         /************************************************************************
          * LEVEL DATABASE WITH HINTS, TRAPS, YELLOW WALLS & MULTI-TILE STRUCTURE
@@ -698,6 +767,14 @@
         let completedLevels = new Set(); // Stores solved level indexes
         let attemptedLevels = new Set(); // Tracks actually started/entered levels
 
+        // Custom Character Color Values
+        let playerCustomBody = '#000000';
+        let playerCustomEye = '#ffffff';
+
+        // Stage re-entry exit limits
+        let lastExitedLevelIndex = -1;
+        let lastExitTime = 0;
+
         // Dynamic 2D Board Enclosure Floor Flag
         let isFloorMap = [];
 
@@ -824,6 +901,12 @@
                 } catch (e) {}
             }
 
+            // Retrieve customized visual configurations
+            const savedBody = localStorage.getItem('boxpush_custom_body');
+            if (savedBody) playerCustomBody = savedBody;
+            const savedEye = localStorage.getItem('boxpush_custom_eye');
+            if (savedEye) playerCustomEye = savedEye;
+
             for (let r = 0; r < overworldGrid.length; r++) {
                 for (let c = 0; c < overworldGrid[r].length; c++) {
                     if (overworldGrid[r][c] === '@') {
@@ -861,6 +944,7 @@
             gameState = "title";
             document.getElementById('title-screen').classList.remove('hidden');
             document.getElementById('btn-menu').classList.add('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
             document.getElementById('level-title-display').classList.add('hidden');
             document.getElementById('overworld-stats').classList.add('hidden');
@@ -873,6 +957,7 @@
         function startGameFromTitle() {
             document.getElementById('title-screen').classList.add('hidden');
             document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.remove('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
@@ -969,6 +1054,7 @@
             
             // Re-enable global overlays hidden by Title screen launcher
             document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.remove('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
@@ -1011,6 +1097,7 @@
 
             // Re-enable global overlays hidden by Title screen launcher
             document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.add('hidden'); // Hide color customization inside active stage
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
@@ -1137,6 +1224,56 @@
 
         function changeZoom(amount) {
             targetOverworldZoom = Math.min(2.5, Math.max(0.6, targetOverworldZoom + amount));
+        }
+
+        function showClearConfirm() {
+            document.getElementById('clear-normal-view').classList.add('hidden');
+            document.getElementById('clear-confirm-view').classList.remove('hidden');
+        }
+
+        function cancelClearData() {
+            document.getElementById('clear-normal-view').classList.remove('hidden');
+            document.getElementById('clear-confirm-view').classList.add('hidden');
+        }
+
+        function confirmClearData() {
+            // Remove gameplay save flags keeping key structure names identical
+            localStorage.removeItem('boxpush_highest_level');
+            localStorage.removeItem('boxpush_completed_levels');
+            localStorage.removeItem('boxpush_attempted_levels');
+
+            highestLevelPlayed = 1;
+            completedLevels = new Set();
+            attemptedLevels = new Set();
+
+            cancelClearData();
+            buildLevelsSidebar();
+            renderRulesCodex();
+            loadOverworld();
+            playSfx('fail');
+        }
+
+        function setBodyColor(color) {
+            playerCustomBody = color;
+            document.getElementById('body-picker').value = color;
+            localStorage.setItem('boxpush_custom_body', color);
+        }
+
+        function setEyeColor(color) {
+            playerCustomEye = color;
+            document.getElementById('eye-picker').value = color;
+            localStorage.setItem('boxpush_custom_eye', color);
+        }
+
+        function toggleCustomizeModal() {
+            const modal = document.getElementById('customize-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                document.getElementById('body-picker').value = playerCustomBody;
+                document.getElementById('eye-picker').value = playerCustomEye;
+            } else {
+                modal.classList.add('hidden');
+            }
         }
 
         function computeFloorMap() {
@@ -1469,6 +1606,14 @@
                 }
             }
 
+            // Check stage re-entry lock block limits
+            if (targetNode && targetNode.type === 'level') {
+                const targetLvlIdx = targetNode.index;
+                if (targetLvlIdx === lastExitedLevelIndex && (Date.now() - lastExitTime < 750)) {
+                    return; // Prevent immediate re-entry during 0.75s cooldown
+                }
+            }
+
             overworldPlayerPos = { r: nextRow, c: nextCol };
             visualOverworldPlayer.targetX = nextCol;
             visualOverworldPlayer.targetY = nextRow;
@@ -1761,6 +1906,10 @@
         function exitToOverworld() {
             const dir = levelEntryState.entryDirection;
             
+            // Set exit limits parameters
+            lastExitedLevelIndex = activeLevelIndex;
+            lastExitTime = Date.now();
+
             triggerCinematicTransition(dir, () => {
                 overworldPlayerPos = { ...levelEntryState.preEntryPosition };
                 visualOverworldPlayer.x = overworldPlayerPos.c;
@@ -1790,12 +1939,14 @@
             } else {
                 sidebar.classList.add('-translate-x-full');
                 backdrop.classList.add('hidden');
+                cancelClearData(); // Clear delete save confirmations automatically
             }
         }
 
         function hideSidebar() {
             document.getElementById('sidebar-menu').classList.add('-translate-x-full');
             document.getElementById('sidebar-backdrop').classList.add('hidden');
+            cancelClearData();
         }
 
         function buildLevelsSidebar() {
@@ -1806,6 +1957,9 @@
                 const row = document.createElement('button');
                 const isCompleted = completedLevels.has(idx);
                 const isAttempted = attemptedLevels.has(idx) && !isCompleted;
+                
+                // Track locking eligibility under custom progressive settings rules
+                const isLevelAccessible = (ENTRANCE_MODE === 0) || (idx === 0) || attemptedLevels.has(idx) || completedLevels.has(idx);
 
                 // Color coding level rows by play states (alternating shades)
                 let bgColor = "bg-white text-black";
@@ -1823,13 +1977,21 @@
 
                 row.className = `w-full text-left px-6 py-5 font-bold text-xs border-b border-black transition-colors duration-150 rounded-none flex items-center justify-between ${bgColor}`;
                 
-                row.onclick = () => {
-                    hideSidebar();
-                    loadLevel(idx);
-                };
+                if (isLevelAccessible) {
+                    row.onclick = () => {
+                        hideSidebar();
+                        loadLevel(idx);
+                    };
+                } else {
+                    row.classList.add('opacity-40', 'cursor-not-allowed');
+                    row.onclick = null;
+                }
 
                 row.innerHTML = `
-                    <span class="tracking-widest uppercase">${idx + 1}. ${level.name}</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="tracking-widest uppercase">${idx + 1}. ${level.name}</span>
+                        ${!isLevelAccessible ? '<span class="material-symbols-outlined text-[13px] text-neutral-400 select-none">lock</span>' : ''}
+                    </div>
                     <span class="font-extrabold text-[10px] opacity-65">${level.grid.length}x${getMaxColumns(level.grid)}</span>
                 `;
                 container.appendChild(row);
@@ -2098,7 +2260,7 @@
             const opMargin = tileSize * 0.14;
             const opSize = tileSize - opMargin * 2;
 
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = playerCustomBody;
             ctx.fillRect(opX + opMargin, opY + opMargin, opSize, opSize);
 
             if (!visualOverworldPlayer.blinkState) {
@@ -2119,7 +2281,7 @@
                     eyeYOffset += 3;
                 }
 
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = playerCustomEye;
                 ctx.fillRect(leftEyeX, eyeYOffset, eyeW, eyeH);
                 ctx.fillRect(rightEyeX, eyeYOffset, eyeW, eyeH);
             }
@@ -2364,7 +2526,7 @@
             const pMargin = tileSize * 0.14;
             const pSize = tileSize - pMargin * 2;
 
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = playerCustomBody;
             ctx.fillRect(pX + pMargin, pY + pMargin, pSize, pSize);
 
             if (!visualPlayer.blinkState) {
@@ -2386,7 +2548,7 @@
                 }
 
                 if (isLevelFailed) {
-                    ctx.strokeStyle = '#ffffff';
+                    ctx.strokeStyle = playerCustomEye;
                     ctx.lineWidth = 2.5;
 
                     ctx.beginPath();
@@ -2394,7 +2556,7 @@
                     ctx.moveTo(rightEyeX - 1, eyeYOffset + eyeH/2); ctx.lineTo(rightEyeX + eyeW + 1, eyeYOffset + eyeH/2);
                     ctx.stroke();
                 } else {
-                    ctx.fillStyle = '#ffffff';
+                    ctx.fillStyle = playerCustomEye;
                     ctx.fillRect(leftEyeX, eyeYOffset, eyeW, eyeH);
                     ctx.fillRect(rightEyeX, eyeYOffset, eyeW, eyeH);
                 }
