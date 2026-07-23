@@ -15,9 +15,8 @@
             font-family: 'Inter', sans-serif;
             background-color: #dcdcdc;
             color: #000000;
-            touch-action: none; /* Disable zooming and double-tap actions on mobile */
+            touch-action: none;
         }
-        /* Custom scrollbar for level select sidebar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -34,6 +33,8 @@
 
     <!-- Floating Left-Center Menu & Back Button Group -->
     <div class="fixed top-6 left-6 z-40 flex flex-col space-y-2">
+
+
         <div class="flex items-center space-x-2">
             <button id="btn-menu" onclick="toggleSidebar()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Open Menu">
                 <span class="material-symbols-outlined select-none text-xl leading-none">menu</span>
@@ -42,12 +43,18 @@
                 <span class="material-symbols-outlined select-none text-xl leading-none">arrow_back</span>
             </button>
         </div>
+        
+        <!-- Moves Counter (top-left, above buttons) -->
+        <div id="moves-counter" class="hidden flex flex-col items-center justify-center bg-transparent text-black select-none">
+            <span id="moves-number" class="font-black text-3xl leading-none">∞</span>
+            <span class="text-[10px] font-black uppercase tracking-widest">Moves left</span>
+        </div>
         <button id="btn-customize" onclick="toggleCustomizeModal()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Customize Character">
             <span class="material-symbols-outlined select-none text-xl leading-none">palette</span>
         </button>
     </div>
 
-    <!-- Floating Top-Center Level Title Banner (Minimalist) -->
+    <!-- Floating Top-Center Level Title Banner -->
     <div class="fixed top-8 left-1/2 transform -translate-x-1/2 z-30 text-center select-none pointer-events-none w-full max-w-[50%]">
         <h1 id="level-title-display" class="font-black text-xs md:text-sm tracking-widest uppercase text-black drop-shadow-sm truncate">
             OVERWORLD MAP
@@ -59,13 +66,11 @@
         0/20
     </div>
 
-    <!-- Floating Action Group (Sleek minimalist controls, no heavy brutalist offsets) -->
+    <!-- Floating Action Group (right side) – only Undo & Reset now -->
     <div id="level-controls-group" class="fixed top-6 right-6 z-40 flex items-center space-x-2 transition-opacity duration-300">
-        <!-- Undo Button (Material Symbols) -->
         <button onclick="undoMove()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Undo (Z or U)">
             <span class="material-symbols-outlined select-none text-xl leading-none">undo</span>
         </button>
-        <!-- Reset Button (Material Symbols) -->
         <button onclick="resetCurrentLevel()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Reset (R)">
             <span class="material-symbols-outlined select-none text-xl leading-none">replay</span>
         </button>
@@ -76,11 +81,10 @@
         <canvas id="gameCanvas" class="bg-[#dcdcdc] block"></canvas>
     </main>
 
-    <!-- Slide-Out Sidebar Menu (Levels, Hints, Rules) -->
+    <!-- Slide-Out Sidebar Menu -->
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/30 z-40 hidden transition-opacity duration-300"></div>
     
     <aside id="sidebar-menu" class="fixed top-0 left-0 h-full w-80 bg-white border-r border-black z-50 transform -translate-x-full transition-transform duration-300 flex flex-col rounded-none">
-        <!-- Sidebar Header with close button -->
         <div class="p-6 border-b border-black flex justify-between items-center bg-black text-white">
             <h2 class="font-black text-xs tracking-widest uppercase">BOXPUSH MENU</h2>
             <button onclick="toggleSidebar()" class="w-7 h-7 border border-white/50 flex items-center justify-center hover:bg-white hover:text-black transition-colors font-bold rounded-none text-[10px]">
@@ -88,7 +92,6 @@
             </button>
         </div>
 
-        <!-- 3 Items Tab Selector -->
         <div class="flex border-b border-black bg-black text-white text-[10px] font-black tracking-widest">
             <button id="tab-levels-btn" onclick="switchTab('levels')" class="flex-1 py-3 border-r border-black text-center uppercase bg-white text-black">
                 LEVELS
@@ -101,38 +104,26 @@
             </button>
         </div>
 
-        <!-- Scrollable Tab Container -->
         <div class="flex-1 overflow-y-auto bg-white">
-            <!-- Tab Contents: Level Select -->
             <div id="panel-levels" class="block">
-                <!-- Return to Overworld Trigger inside levels select -->
                 <button onclick="exitToOverworldFromMenu()" class="w-full text-left px-6 py-5 font-black text-xs border-b border-black bg-neutral-100 hover:bg-black hover:text-white transition-colors duration-150 rounded-none flex items-center justify-between">
                     <span class="tracking-widest uppercase text-black hover:text-inherit">← RETURN TO OVERWORLD</span>
                 </button>
-                <div id="sidebar-level-list">
-                    <!-- Dynamic list generated in JavaScript -->
-                </div>
+                <div id="sidebar-level-list"></div>
             </div>
 
-            <!-- Tab Contents: Hints -->
             <div id="panel-hints" class="hidden p-6 space-y-4">
                 <div class="p-0">
                     <h3 id="hints-level-title" class="font-black text-xs uppercase tracking-widest text-black mb-2">HINTS</h3>
-                    <p id="hints-level-desc" class="text-xs leading-relaxed font-bold text-neutral-600">
-                        <!-- Dynamic current level hint loaded here -->
-                    </p>
+                    <p id="hints-level-desc" class="text-xs leading-relaxed font-bold text-neutral-600"></p>
                 </div>
             </div>
 
-            <!-- Tab Contents: Rules -->
             <div id="panel-rules" class="hidden p-6 space-y-6">
-                <div id="rules-list" class="divide-y divide-neutral-200">
-                    <!-- Dynamic rule elements loaded here -->
-                </div>
+                <div id="rules-list" class="divide-y divide-neutral-200"></div>
             </div>
         </div>
 
-        <!-- Clear Data Footer Section -->
         <div class="p-4 border-t border-black bg-neutral-50">
             <div id="clear-normal-view" class="block">
                 <button onclick="showClearConfirm()" class="w-full py-2.5 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors font-black text-[10px] tracking-widest uppercase rounded-none">
@@ -153,17 +144,17 @@
         </div>
     </aside>
 
-    <!-- Integrated Bottom Text HUD (Safely clear of D-Pad and mobile layouts) -->
+    <!-- Integrated Bottom Text HUD -->
     <div id="hud-bottom-text" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40 text-center pointer-events-none select-none text-xs font-black uppercase tracking-widest text-black transition-opacity duration-300 opacity-0 whitespace-nowrap bg-white/90 px-4 py-2 border border-black/10"></div>
 
-    <!-- Level Hint Floating Action Button (Clean toggle) -->
+    <!-- Level Hint Floating Action Button -->
     <div id="bottom-hint-wrapper" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex flex-col items-center select-none w-full max-w-[80%] md:max-w-md hidden">
         <button id="btn-toggle-hint" onclick="toggleBottomHint()" class="px-4 py-2 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
             HINT
         </button>
     </div>
 
-    <!-- Zoom Controls (Bottom Right, positioned perfectly above coordinates) -->
+    <!-- Zoom Controls -->
     <div id="zoom-controls" class="fixed bottom-14 right-6 z-40 flex flex-col space-y-2 select-none hidden">
         <button onclick="changeZoom(0.2)" class="w-11 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white flex items-center justify-center font-bold text-xl rounded-none active:bg-neutral-100" title="Zoom In">
             <span class="material-symbols-outlined select-none text-xl">zoom_in</span>
@@ -173,7 +164,7 @@
         </button>
     </div>
 
-    <!-- Completely borderless & transparent floating touch buttons (Bottom-Left Alignment) -->
+    <!-- Mobile D-Pad -->
     <div id="mobile-dpad-container" class="fixed bottom-6 left-6 z-30 grid grid-cols-3 gap-0 bg-transparent p-0 select-none">
         <div></div>
         <button onclick="handleDirectionalInput('up')" class="w-12 h-12 bg-black/5 text-black hover:bg-black/15 active:bg-black/25 flex items-center justify-center font-black text-lg rounded-none select-none border-0 outline-none">
@@ -192,26 +183,21 @@
         </button>
     </div>
 
-    <!-- Tiny, Minimalist real-time grid coordinates HUD (Bottom-Right, fully Cartesian X,Y) -->
+    <!-- Coordinates HUD -->
     <div id="hud-coordinates" class="fixed bottom-6 right-6 z-30 pointer-events-none select-none text-[10px] font-bold text-neutral-400 font-mono tracking-wider">
         [X: 0, Y: 0]
     </div>
 
-    <!-- Modern Minimalist Title Screen Overlay -->
+    <!-- Title Screen -->
     <div id="title-screen" class="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#dcdcdc] p-8 hidden">
-        <!-- Top Visual Accent -->
         <div class="w-full max-w-xs h-1 bg-black"></div>
-        
         <div class="flex flex-col items-center space-y-8 select-none">
-            <!-- Game Logo & Title -->
             <h1 class="font-black text-4xl md:text-5xl tracking-[0.25em] text-black text-center uppercase leading-none">
                 BOXPUSH
             </h1>
             <p class="font-bold text-xs tracking-widest text-black/50 uppercase">
                 A puzzle game
             </p>
-            
-            <!-- Modern Flat Action Menu -->
             <div class="flex flex-col space-y-3 w-60 pt-6">
                 <button onclick="startGameFromTitle()" class="w-full py-4 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
                     PLAY GAME
@@ -221,14 +207,12 @@
                 </button>
             </div>
         </div>
-        
-        <!-- Bottom Blueprint Spec Info -->
         <p class="text-[9px] font-mono text-black/35 tracking-wider uppercase">
-            v1.0 / initial release
+            v1.1 / ice update
         </p>
     </div>
 
-    <!-- Interactive Credits Modal -->
+    <!-- Credits Modal -->
     <div id="credits-modal" class="fixed inset-0 z-50 flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden animate-fade-in">
         <div class="bg-white border border-black p-8 max-w-sm w-full text-center relative rounded-none">
             <h2 class="font-black text-sm tracking-widest uppercase text-black mb-4">CREDITS</h2>
@@ -244,12 +228,10 @@
         </div>
     </div>
 
-    <!-- Customize Character Modal -->
+    <!-- Customize Modal -->
     <div id="customize-modal" class="fixed inset-0 z-50 flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden">
         <div class="bg-white border border-black p-8 max-w-sm w-full text-center relative rounded-none">
             <h2 class="font-black text-sm tracking-widest uppercase text-black mb-4">CUSTOMIZE</h2>
-            
-            <!-- Body Color -->
             <div class="mb-5 text-left">
                 <span class="font-black text-[10px] tracking-widest uppercase block mb-2 text-neutral-400">Body Paint</span>
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1.5">
@@ -261,8 +243,6 @@
                     <input type="color" id="body-picker" onchange="setBodyColor(this.value)" class="w-7 h-7 p-0 border border-neutral-300 cursor-pointer rounded-none" title="Custom Picker">
                 </div>
             </div>
-            
-            <!-- Eye Color -->
             <div class="mb-6 text-left">
                 <span class="font-black text-[10px] tracking-widest uppercase block mb-2 text-neutral-400">Eyes / Visor</span>
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1.5">
@@ -274,7 +254,6 @@
                     <input type="color" id="eye-picker" onchange="setEyeColor(this.value)" class="w-7 h-7 p-0 border border-neutral-300 cursor-pointer rounded-none" title="Custom Picker">
                 </div>
             </div>
-
             <button onclick="toggleCustomizeModal()" class="w-full py-3 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
                 SAVE & CLOSE
             </button>
@@ -282,27 +261,46 @@
     </div>
 
     <script>
-        /************************************************************************
-         * LAUNCH CONFIGURATION TARGET
-         * -1 = Launch on Title Screen (Default)
-         *  0 = Launch on Overworld Map
-         *  1+ = Launch directly on that Level (e.g. 1 loads activeLevelIndex 0)
-         ************************************************************************/
-        const LAUNCH_TARGET = -1;
-
-        /************************************************************************
-         * ENTRANCE MODE CONFIGURATION
-         *  0 = Free access: enter any level instantly via the BoxPush Menu
-         *  1 = Progressive access: can only enter levels once they are attempted/played on map
-         ************************************************************************/
+        // yes
+        
         const ENTRANCE_MODE = 1;
+        const LERP_SPEED = 0.22;
+        const MAX_ANIMATION_SPEED = 0.24;
 
-        /************************************************************************
-         * LEVEL DATABASE WITH HINTS, TRAPS, YELLOW WALLS & MULTI-TILE STRUCTURE
-         ************************************************************************/
+        // Move-limit tile mapping: lowercase letter -> number of moves (0 = infinite)
+        const MOVE_TILE_LIMITS = {
+            'a': 0,
+            'b': 1,
+            'c': 2,
+            'd': 3,
+            'e': 4,
+            'f': 5,
+            'g': 6,
+            'h': 7,
+            'i': 8,
+            'j': 9,
+            'k': 10,
+            'l': 12,
+            'm': 14, //changed
+            'n': 16,
+            'o': 18,
+            'p': 20,
+            'q': 24,
+            'r': 25,
+            's': 28,
+            't': 30,
+            'u': 32,
+            'v': 40,
+            'w': 50,
+            //'x' is already used by  box avoid
+            'y': 100, //temorary
+            'z': 200, //teporary
+        };
+
+
         const LEVELS = [
             {
-                name: "Beginning",
+                name: "The start of everything",
                 grid: [
                     "#########",
                     "####.####",
@@ -314,7 +312,7 @@
                 ]
             },
             {
-                name: "Multiple boxes",
+                name: "More boxes",
                 hint: "There is an order.",
                 grid: [
                     "#########",
@@ -327,7 +325,7 @@
                 ]
             },
             {
-                name: "More boxes",
+                name: "Last of the basics",
                 hint: "Some boxes are not meant to be pushed all the way at once.",
                 grid: [
                     "###########",
@@ -341,7 +339,7 @@
                 ]
             },
             {
-                name: "Box avoid",
+                name: "New tiles",
                 grid: [
                     "###########",
                     "#@ x     .#",
@@ -355,7 +353,7 @@
             },
             {
                 name: "Combined together",
-                hint: "Plan your route around the traps so you always have space to push from behind.",
+                hint: "Plan your route around the traps so you always have space to push from behind. Walk onto the ice to slide!",
                 grid: [
                     "###########",
                     "##x .######",
@@ -364,13 +362,13 @@
                     "### ###   #",
                     "###$###  x#",
                     "##x.### $##",
-                    "##      x##",
+                    "##       ##",
                     "###  x#####",
                     "###########"
                 ]
             },
             {
-                name: "Double Jeopardy",
+                name: "Push madness",
                 hint: "Think about how to push the box towards the right-top target.",
                 grid: [
                     "###########",
@@ -385,7 +383,7 @@
                 ]
             },
             {
-                name: "Not everything",
+                name: "Locking a room",
                 hint: "You cannot enter the first room later on, so...",
                 grid: [
                     "###########",
@@ -416,7 +414,7 @@
                 ]
             },
             {
-                name: "Left and right",
+                name: "Orders",
                 hint: "Which target of the five should be placed first?",
                 grid: [
                     "###########",
@@ -433,28 +431,28 @@
                 ]
             },
             {
-                name: "Not all have to be solved",
+                name: "Win Condition tutorial",
                 grid: [
                     "###########",
-                    "#         #",
-                    "#   $     #",
-                    "#         #",
-                    "#         #",
-                    "# @ $  .  #",
-                    "#         #",
-                    "#         #",
-                    "#   $  .  #",
-                    "#         #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Not all have to be done",
-                grid: [
-                    "###########",
-                    "#         #",
+                    "####   ####",
+                    "### $   ###",
+                    "#  x#######",
+                    "#   # $ . #",
+                    "# @       #",
+                    "#     #####",
                     "#      .  #",
-                    "#         #",
+                    "#       $ #",
+                    "#  ########",
+                    "###########"
+                ]
+            },
+            {
+                name: "Win condition tutorial II",
+                grid: [
+                    "###########",
+                    "###     ###",
+                    "##     .###",
+                    "####xx#####",
                     "#         #",
                     "# @ $  .  #",
                     "#         #",
@@ -465,7 +463,7 @@
                 ]
             },
             {
-                name: "Combine them all",
+                name: "Don't stop me",
                 hint: "Get to the lower-right area.",
                 grid: [
                     "###########",
@@ -482,11 +480,12 @@
                 ]
             },
             {
-                name: "Hmmm...",
+                name: "Numbers...",
+                hint: "They correlate to total green segments.",
                 grid: [
                     "###########",
                     "#         #",
-                    "# @ $  .  #",
+                    "# @ $   . #",
                     "#         #",
                     "#######11##",
                     "#         #",
@@ -511,7 +510,7 @@
                 ]
             },
             {
-                name: "Hmmm...(2)",
+                name: "Think about it",
                 hint: "Think about positions the top box could be.",
                 grid: [
                     "############",
@@ -526,7 +525,7 @@
                 ]
             },
             {
-                name: "Structure Introduction",
+                name: "Bigger boxes introduction",
                 grid: [
                     "############",
                     "#@     #####",
@@ -537,19 +536,15 @@
                 ]
             },
             {
-                name: "More tiles!",
-                hint: "There are places you can access at the start.",
+                name: "Possibility",
+                hint: "Which is possible?",
                 grid: [
                     "###########",
-                    "# #       #",
-                    "# # $ . #1#",
-                    "#@#     # #",
-                    "# ###x### #",
-                    "# AAA     #",
-                    "###0###1###",
-                    "#         #",
-                    "# $ . $ . #",
-                    "#         #",
+                    "#      ####",
+                    "# AA    ###",
+                    "#  AABB  ##",
+                    "#@  BB    #",
+                    "##     # .#",
                     "###########"
                 ]
             },
@@ -600,10 +595,365 @@
                     "#@AA.. ####",
                     "###########"
                 ]
-            }
-        ];
+            },
+            {
+                name: "Oooh slippery!",
+                grid: [
+                    "#########",
+                    "#     ###",
+                    "#     ###",
+                    "#  IIII.#",
+                    "#  $ ####",
+                    "#@ ######",
+                    "#########"
+                ]
+            },
+            {
+                name: "Diffuclt? No. Fun? Yes!!!!",
+                grid: [
+                    "##########",
+                    "##@##II###",
+                    "##IIIIIII####",
+                    "##IIIIIIII$.#",
+                    "#IIIII#II####",
+                    "#IIIIIIII#",
+                    "##IIIII###",
+                    "##########",
+                    "##########"
+                ]
+            },
+            {
+                name: "Box stopping",
+                hint: "Remember two boxes can't be moving at the same time?",
+                grid: [
+                    "##########",
+                    "#  ###.###",
+                    "# $###I###",
+                    "#  ###I###",
+                    "#@$IIIIIx#",
+                    "#        #",
+                    "#######  #",
+                    "##########",
+                ]
+            },
+            {
+                name: "Box rolling",
+                grid: [
+                    "###########",
+                    "##  ###.###",
+                    "## $##II###",
+                    "##@ ##II###",
+                    "##I$ IIIIIx#",
+                    "## II I  II#",
+                    "##  I I#III#",
+                    "####  I#####",
+                    "###########",
+                ]
+            },
+            {
+                name: "Bug? Feature!",
+                grid: [
+                    "###########",
+                    "###  Ix.###",
+                    "### #x#####",
+                    "### II$ ###",
+                    "### x   ###",
+                    "####I######",
+                    "##@$I#",
+                    "###  #",
+                    "######",
+                ]
+            },
+            {
+                name: "Do it yourself",
+                hint: "Do it Left",
+                grid: [
+                    "########", 
+                    "#     ##",
+                    "# .   ##",
+                    "#     ##",
+                    "###xxx###",
+                    "#  III  #",
+                    "# $   $ #",
+                    "#@      #",
+                    "########",
+                ]
+            },
+            {
+                name: "Again and again",
+                hint: "Blocks as walls, twice.",
+                grid: [
+                    "##########",
+                    "#.   xx  #",
+                    "####x### #", 
+                    "# I III  #",
+                    "# x#xx#  #",
+                    "#xIIxI## #",
+                    "##Ix#xx#x#",
+                    "##IIxIII #",
+                    "## $   $ #",
+                    "##@     ##",
+                    "#########",
+                ]
+            },
+            {
+                name: "Cooperation",
+                hint: "Blocks as walls II.",
+                grid: [
+                    "###########",
+                    "###    .###",
+                    "###xx#xI .#",
+                    "##I I##I###",
+                    "##I. x I###",
+                    "##  I# xI #",
+                    "####x##I  #",
+                    "##  I $I ##",
+                    "# $ IxII ##",
+                    "# @    11#",
+                    "#########",
+                ]
+            },
+            {
+                name: "Big maps",
+                hint: "How many should you put up there? Also blocks as walls",
+                grid: [
+                    "#############",
+                    "###############",
+                    "#####         #",
+                    "#####         #",
+                    "#####IIIIIII  ##",
+                    "#####xxxxxxx######",
+                    "##  xIIIIIIIx#####",
+                    "# $ xIIIIIIIx####",
+                    "#@ IxIIIIIIIxI..#",
+                    "# $IxIII#IIIx####",
+                    "#  IxIIIIIIIxI  #",
+                    "# $#xIIIIIIIxI  #",
+                    "#   xIIIIIIIxI  #",
+                    "# $ #xxxxxxx#####",
+                    "#   ###.#III#####",
+                    "#################",
+                    "#################",
+                    "#############",
+                ]
+            },
+            {
+                name: "Big block and ice",
+                grid: [
+                    "###########",
+                    "# x##  ####",
+                    "#   I I ###",
+                    "#I  ##xx###",
+                    "# I ##..###",
+                    "#xxx#######",
+                    "# I      ##",
+                    "##I       #",
+                    "##        #",
+                    "####xxxx###",
+                    "##    I ###",
+                    "#     I ###",
+                    "# AA    ###",
+                    "# @    ###",
+                    "#########",
+                ]
+            },
+            {
+                name: "Ice pushing",
+                hint: "Should you push the long piece up, or...?",
+                grid: [
+                    "#######",
+                    "###.###",
+                    "###x###########",
+                    "#..I   ########",
+                    "#  Ix  ########",
+                    "#     ######  #",
+                    "#I1#I ##  2   #",
+                    "#Ix#  #0I     #",
+                    "#xx## #x x#  ##",
+                    "# I      x#I #",
+                    "##  #x#####  #",
+                    "#####     #xx#",
+                    "#          I #",
+                    "# @ $ $ AA    #",
+                    "##I0          #",
+                    "##x############",
+                    "##.#",
+                    "####",
+                ]
+            },
+            {
+                name: "More bigger boxes",
+                hint: "Re-arrangements",
+                grid: [
+                    "###########",
+                    "###########",
+                    "#####x x ##",
+                    "##xx#I  Ix#  #",
+                    "#   xIIIIIx   .#",
+                    "#xA   DDxx## . #",
+                    "# AA@  Dx #",
+                    "#x$  BBB  #",
+                    "#  x x ###",
+                    "#########",
+                ]
+            },
+            {
+                name: "Flags",
+                hint: "You can go back to a flag to refill moves. Note: they don't add up",
+                grid: [
+                    "###########",
+                    "#   #     #",
+                    "# @ m     #",
+                    "#   #     #",
+                    "#######$  #",
+                    "#######   #",
+                    "###    x  #",
+                    "### .     #",
+                    "###       #",
+                    "#########",
+                ]
+            },
+            {
+                name: "Diagonal thing..?",
+                hint: "1 is a trap, 2 could be a trap, 4 can skip one",
+                grid: [
+                    "#########",
+                    "#########",
+                    "##.     #",
+                    "###### x####",
+                    "#  k     b #",
+                    "#   c     g#",
+                    "#    b     #",
+                    "#     e    #",
+                    "#b     b   #",
+                    "#       e  #",
+                    "#  g       #",
+                    "#   b     i#",
+                    "#    e     #",
+                    "#     b    #",
+                    "#b  $  c   #",
+                    "# g     g  #",
+                    "##@#########",
+                    "#####",
+                ]
+            },
+            {
+                name: "More flags",
+                hint: "When should you refill/go for next?",
+                grid: [
+                    "##########",
+                    "#@######.###",
+                    "#m   ##    #",
+                    "# x$ ##    #",
+                    "#  # x#  e #",
+                    "#    x#    #",
+                    "#   x###x  #",
+                    "##         #",
+                    "####     g##",
+                    "############",
+                ]
+            },
+            {
+                name: "Move wisely",
+                hint: "Save a move with ice",
+                grid: [
+                    "######",
+                    "### .#",
+                    "###  #",
+                    "###  #",
+                    "###  #",
+                    "###  ######",
+                    "###  #  #l#",
+                    "#    #  II#",
+                    "#  III  I #",
+                    "#      II #",
+                    "####### I #",
+                    "#  III    #",
+                    "# $        #",
+                    "#          #",
+                    "####1######",
+                    "###.  $x###",
+                    "#@r #   ###",
+                    "###########",
+                ]
+            },
+            {
+                name: "Range",
+                hint: "You on ice",
+                grid: [
+                    "###############",
+                    "#m ####     .##",
+                    "#   c#   ######",
+                    "# x$ g   ##",
+                    "#III     ##",
+                    "#    ##  ##",
+                    "#######  ##",
+                    "#    #    #",
+                    "# @  #  $ #",
+                    "#    k    #",
+                    "#    #    #",
+                    "###########",
+                ]
+            },
+            {
+                name: "Optimization",
+                hint: "Push to shorten your path.",
+                grid: [
+                    "############",
+                    "###  #######",
+                    "###      $.#",
+                    "###   $ ####",
+                    "##   $######",
+                    "##   x$  ###",
+                    "#IIIIII  ###",
+                    "####  $x  ##",
+                    "#######$  ##",
+                    "##   x$  $##",
+                    "##      x ##",
+                    "## o ###  ##",
+                    "###@########",
+                    "#####",
+                ]
+            },
+            {
+                name: "Prep and push.",
+                hint: "Push to shorten your path.",
+                grid: [
+                    "#############",
+                    "###p  @  ####",
+                    "##AA   DDxx ####",
+                    "#    $  DB  #x ##",
+                    "#  CCC ABB      #",
+                    "###### A xxx##  #",
+                    "##############  #",
+                    "##############  #",
+                    "##############  #",
+                    "##############..#",
+                    "#################"
+                ]
+            },
+            {
+                name: "Many things",
+                hint: "The '3 1' path is a lie.",
+                grid: [
+                    "#############",
+                    "########x   #",
+                    "## . 3 1$ $ #",
+                    "##@       I########",
+                    "### ######x#####  #",
+                    "### ######x####AA #",
+                    "##  #####   #     #",
+                    "##        .    $  #",
+                    "#    ###1   ##  ###",
+                    "#..################",
+                    "###################",
+                ]
+            },
 
-        // Progressive Rules Codex Config
+
+        ];
+        const LAUNCH_TARGET = -1;
+
         const RULES_CODEX = [
             {
                 name: "How to win",
@@ -623,7 +973,7 @@
             {
                 name: "Win condition",
                 unlockAtLevel: 4,
-                desc: "All boxes are green **or** all green spots have box on top of themm"
+                desc: "All boxes are green **or** all green spots have a box on top of them."
             },
             {
                 name: "Yellow walls",
@@ -634,14 +984,21 @@
                 name: "Bigger structures",
                 unlockAtLevel: 16,
                 desc: "Some blocks span multiple cells and move together as connected structures."
+            },
+            {
+                name: "Ice blocks",
+                unlockAtLevel: 21,
+                desc: "You can boxes slip on them. Be reminded that you can still only push one box at a time. Players pushing a box out of ice will give it some extra boost (1 more block)."
+            },
+            {
+                name: "Moves changer",
+                unlockAtLevel: 33,
+                desc: "In all levels, you start with infinite moves. When you touch a move changer **your remaining moves become the number written on the tile**. It replaces your remaining moves, and the same tile can be used muitiple times. If you run out of moves you cannot move anymore. **Boxes cannot push onto or through this tile.**"
             }
         ];
 
         /************************************************************************
-         * OVERWORLD GRID CONFIGURATION AND HELPER GUIDE
-         * Nodes mapped cleanly using standard Cartesian system:
-         * X (Col) increases rightward. Y (Row) increases upward.
-         * Top-most row of the 13-row baseline layout is Y=12. Bottom-most row is Y=0.
+         * OVERWORLD GRID CONFIGURATION
          ************************************************************************/
         const OVERWORLD_COMPRESSED = [
             "#[28]         #[50]",
@@ -650,30 +1007,29 @@
             "#[20]       L         #[50]",
             "#[20]       L         #[50]",
             "#[20]       L         #[50]",
-            "#[28]         #[50]",
-            "#[28]         #[50]",
-            "#[28]         #[50]",
-            "#[31]   #[50]",
-            "#[31]LLL#[50]",
-            "#[28]   [8]#[55]",
-            "#[28]   [8]#[55]",
-            "#[28]   [8]#[55]",
-            "#[28]   [8]#[55]",
-            "#[28]   [8]#[55]",
-            "#[28]   #[55]",
-            "#[28]   #[55]",
-            "#[28]   #[55]",
-            "#[28]LLL###[55]",
-            "#[22] [12]#[55]",
-            "#[22] [12]#[55]",
-            "#[22] [12]#[55]",
+            "#[28]         ### [25]#[55]",
+            "#[28]         ### [25]#[55]",
+            "#[28]         ### [25]#[55]",
+            "#[31]   #[6] [3]#### [6]### [9]###[55]",
+            "#[31]LLL#[6] [3]####L[6]### [9]###[55]",
+            "#[28]   [8]#[2]L[3]#### [6]###[4]LLL###[50]",
+            "#[14] [13]L   [8]#[2] [3]#### [6]###[4]   ###[50]",
+            "#[14] [13]L   [8]#[2] [13]L  [4]   #[50]",
+            "#[14] [13]L   [8]#[2] [13]L  [4]   #[50]",
+            "#[28]   [8]#[2] [13]L  [4]   #[50]",
+            "#[28]   #[19]   #[3] [9]#[25]",
+            "#[28]   #[19]   #[3] [9]L [9]#[25]",
+            "#[28]   #[19]   #[3] [9]L [9]#[25]",
+            "#[28]LLL###[17]LLL#[3] [9]L [9]#[25]",
+            "#[22] [12]L [18]#[3] [9]#[25]",
+            "#[22] [12]L [18]#[55]",
+            "#[22] [12]L [18]#[55]",
             "#[22]LLL#[6]LLL#####[55]",
             "#   ## [6]   ## [6]   ##   [8]#[55]",
             "# @    [6]   LL [6]   ##   [8]#[55]",
             "#   ## [6]   ## [6]   ##   [8]#[55]",
             "#[500]"
         ];
-        // Cartesian Nodes database mapping (assuming grid baseline height is 13 rows)
         const OVERWORLD = {
             compressedGrid: OVERWORLD_COMPRESSED,
             nodes: {
@@ -716,9 +1072,58 @@
                 "34,23":   { type: "level", index: 19, label: "20" },
                 
                 "27,23":  { type: "lock", required: 20 },
-                "25,23":   { type: "info", text: "Conrgatulations! You've reached the end of this game for now." },
-                "23,23":   { type: "info", text: "Look for updates (that will happen once in a while)." },
-                "21,23":   { type: "info", text: "Thanks for playing and I hope this game have you a nice time!" }
+                "25,23":   { type: "info", text: "Congratulations! You've reached the end of this section." },
+                "23,23":   { type: "info", text: "Go down for more content." },
+                "21,23":   { type: "info", text: "Things will get a bit harder, good luck!" },
+                
+                "27,14":  { type: "lock", required: 16 },
+                "25,14":   { type: "info", text: "Room of general tips and information 1" },
+                "23,14":   { type: "info", text: "Customize yourself with the button on top left." },
+                "21,14":   { type: "info", text: "Zoom in/out with the bottom buttons, obviously." },
+                "19,14":   { type: "info", text: "You can enter a level from menu too, and exit a level with exit button/menu." },
+                "17,14":   { type: "info", text: "In the menu: Grey = Undiscovered, Yellow = Discovered, not completed, Green = Completed" },
+                "15,14":   { type: "info", text: "Game too easy? Later area are a bit harder." },
+
+                "34,6":  { type: "lock", required: 20 },
+                "38,6":   { type: "level", index: 20, label: "21" },
+                "40,6":   { type: "level", index: 21, label: "22" },
+                "46,6":   { type: "level", index: 22, label: "23" },
+                "48,6":   { type: "level", index: 23, label: "24" },
+                
+                "51,8":  { type: "lock", required: 24 },
+                "51,13":   { type: "info", text: "This next feature is (probably) important." },
+                "49,13":   { type: "level", index: 24, label: "25" },
+                "49,15":   { type: "level", index: 25, label: "26" },
+                "51,15":   { type: "level", index: 26, label: "27" },
+                "43,13":   { type: "level", index: 27, label: "28" },
+                "41,13":   { type: "level", index: 28, label: "29" },
+                "41,16":  { type: "lock", required: 29 },
+                "41,18":   { type: "level", index: 29, label: "30" },
+                "41,20":   { type: "level", index: 30, label: "31" },
+                "43,20":   { type: "level", index: 31, label: "32" },
+                
+                "49,17":  { type: "lock", required: 32 },
+                "49,20":   { type: "level", index: 32, label: "33" },
+                "51,20":   { type: "level", index: 33, label: "34" },
+                
+                "47,20":   { type: "info", text: "Feature time!" },
+                "57,20":   { type: "level", index: 34, label: "35" },
+                "57,18":   { type: "level", index: 35, label: "36" },
+                
+                "63,20":   { type: "level", index: 36, label: "37" },
+                "63,18":   { type: "level", index: 37, label: "38" },
+                
+                "60,16":  { type: "lock", required: 38 },
+                "53,13":  { type: "lock", required: 38 },
+                "60,14":   { type: "info", text: "Final levels" },
+                "60,9":   { type: "info", text: "Good luck on these two." },
+                "57,9":   { type: "level", index: 38, label: "39" },
+                "63,9":   { type: "level", index: 39, label: "40" },
+                
+                "68,9":   { type: "info", text: "Congratulations on completing area 2!" },
+                "70,9":   { type: "info", text: "This is the end of the game, for now, again." },
+                "72,9":   { type: "info", text: "Check for future updates and (probably) join my discord :D thanks for playing!" },
+                
                 
             }
         };
@@ -739,58 +1144,44 @@
         let playerPos = { r: 0, c: 0 };
         let historyStack = [];
         
-        // Level status flags
         let isLevelFailed = false;
         let isLevelSolved = false;
 
-        // Expanded Overworld State
         let overworldGrid = expandOverworldGrid(OVERWORLD.compressedGrid);
         let overworldPlayerPos = { r: 1, c: 2 }; 
         let visualOverworldPlayer = { x: 2, y: 1, targetX: 2, targetY: 1, facing: 'right', blinkTimer: 0, blinkState: false };
 
-        // Camera Smooth-Follow coordinates
         let overworldCamera = { x: 2, y: 1 };
         let overworldZoom = 1.0;
         let targetOverworldZoom = 1.0;
 
-        // Lock component grouping definitions
         let lockComponents = [];
 
-        // History tracking for the overworld position when entering levels
         let levelEntryState = {
             preEntryPosition: { r: 1, c: 2 },
             entryDirection: 'right'
         };
 
-        // Saved Progress State
         let highestLevelPlayed = 1;
-        let completedLevels = new Set(); // Stores solved level indexes
-        let attemptedLevels = new Set(); // Tracks actually started/entered levels
+        let completedLevels = new Set();
+        let attemptedLevels = new Set();
 
-        // Custom Character Color Values
         let playerCustomBody = '#000000';
         let playerCustomEye = '#ffffff';
 
-        // Stage re-entry exit limits
         let lastExitedLevelIndex = -1;
         let lastExitTime = 0;
 
-        // Dynamic 2D Board Enclosure Floor Flag
         let isFloorMap = [];
-
-        // Connected Yellow Wall Group Tracker
         let yellowWallComponents = [];
-
-        // Particles System
         let particles = [];
-
-        // Smooth Motion Interpolation States
         let visualPlayer = { x: 0, y: 0, targetX: 0, targetY: 0, blinkTimer: 0, blinkState: false, facing: 'right' };
-        
-        // Structures definition
         let visualBlocks = [];
 
-        // Graphics Viewport Targets
+        let remainingMoves = Infinity;
+        let levelHasMoveTiles = false;
+        let overworldEntrancePos = { r: 1, c: 2 };
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         let audioCtx;
@@ -802,8 +1193,10 @@
 
         function isStructureLetter(char) {
             if (!char) return false;
-            if (char === 'x' || char === 'X' || char === '@' || char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ') return false;
-            return (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z');
+            // Only uppercase A-Z are considered structures; lowercase are move tiles
+            if (char < 'A' || char > 'Z') return false;
+            if (char === 'x' || char === 'X' || char === '@' || char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ' || char === 'I') return false;
+            return true;
         }
 
         function parseMarkdown(text) {
@@ -834,9 +1227,7 @@
 
                 osc.start();
                 osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                // Ignore audio context lock silently
-            }
+            } catch (e) {}
         }
 
         function playSfx(event) {
@@ -849,15 +1240,15 @@
                     }
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(110, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.12);
-                    gain.gain.setValueAtTime(0.09, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(130, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
                     osc.connect(gain);
                     gain.connect(audioCtx.destination);
                     osc.start();
-                    osc.stop(audioCtx.currentTime + 0.12);
+                    osc.stop(audioCtx.currentTime + 0.1);
                 } catch (e) {}
             } else if (event === 'dock') {
                 playSynthBeep(440, 0.15, 'sine', 0.08);
@@ -901,24 +1292,50 @@
                 } catch (e) {}
             }
 
-            // Retrieve customized visual configurations
             const savedBody = localStorage.getItem('boxpush_custom_body');
             if (savedBody) playerCustomBody = savedBody;
             const savedEye = localStorage.getItem('boxpush_custom_eye');
             if (savedEye) playerCustomEye = savedEye;
 
+            const savedOverworldPos = localStorage.getItem('boxpush_overworld_pos');
+            if (savedOverworldPos) {
+                try {
+                    overworldPlayerPos = JSON.parse(savedOverworldPos);
+                    visualOverworldPlayer.x = overworldPlayerPos.c;
+                    visualOverworldPlayer.y = overworldPlayerPos.r;
+                    visualOverworldPlayer.targetX = overworldPlayerPos.c;
+                    visualOverworldPlayer.targetY = overworldPlayerPos.r;
+                    overworldCamera.x = overworldPlayerPos.c;
+                    overworldCamera.y = overworldPlayerPos.r;
+                } catch (e) {}
+            }
+
+            // Always find the entrance '@' to set fallback position
             for (let r = 0; r < overworldGrid.length; r++) {
                 for (let c = 0; c < overworldGrid[r].length; c++) {
                     if (overworldGrid[r][c] === '@') {
-                        overworldPlayerPos = { r, c };
-                        visualOverworldPlayer.x = c;
-                        visualOverworldPlayer.y = r;
-                        visualOverworldPlayer.targetX = c;
-                        visualOverworldPlayer.targetY = r;
-                        overworldCamera.x = c;
-                        overworldCamera.y = r;
+                        overworldEntrancePos = { r, c };
+                        // If no saved position, also set player there
+                        if (!savedOverworldPos) {
+                            overworldPlayerPos = { r, c };
+                            visualOverworldPlayer.x = c;
+                            visualOverworldPlayer.y = r;
+                            visualOverworldPlayer.targetX = c;
+                            visualOverworldPlayer.targetY = r;
+                            overworldCamera.x = c;
+                            overworldCamera.y = r;
+                        }
+                        break;
                     }
                 }
+            }
+
+            const savedZoom = localStorage.getItem('boxpush_overworld_zoom');
+            if (savedZoom) {
+                try {
+                    targetOverworldZoom = parseFloat(savedZoom);
+                    overworldZoom = targetOverworldZoom;
+                } catch (e) {}
             }
 
             computeLockComponents();
@@ -952,6 +1369,7 @@
             document.getElementById('zoom-controls').classList.add('hidden');
             document.getElementById('mobile-dpad-container').classList.add('hidden');
             document.getElementById('hud-coordinates').classList.add('hidden');
+            document.getElementById('moves-counter').classList.add('hidden');
         }
 
         function startGameFromTitle() {
@@ -1051,8 +1469,8 @@
             document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
             document.getElementById('btn-back').classList.add('hidden');
             document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            document.getElementById('moves-counter').classList.add('hidden'); // hide moves counter in overworld
             
-            // Re-enable global overlays hidden by Title screen launcher
             document.getElementById('btn-menu').classList.remove('hidden');
             document.getElementById('btn-customize').classList.remove('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
@@ -1071,6 +1489,18 @@
             if (index < 0 || index >= LEVELS.length) return;
             activeLevelIndex = index;
 
+            // Determine entry position for returning to overworld after level
+            if (gameState === "overworld") {
+                // Coming from overworld (stepping on node or via sidebar)
+                levelEntryState.preEntryPosition = { ...overworldPlayerPos };
+                levelEntryState.entryDirection = 'up'; // direction not critical for exit
+            } else if (gameState === "title") {
+                // Starting from title screen via LAUNCH_TARGET
+                levelEntryState.preEntryPosition = { ...overworldEntrancePos };
+                levelEntryState.entryDirection = 'right';
+            }
+            // If gameState === "level", we keep the existing preEntryPosition (so switching levels preserves exit location)
+
             const actualLevelNum = index + 1;
             if (actualLevelNum > highestLevelPlayed) {
                 highestLevelPlayed = actualLevelNum;
@@ -1086,6 +1516,28 @@
             activeGrid = selectedLevel.grid.map(row => row.split(''));
             originalGrid = selectedLevel.grid.map(row => row.split(''));
 
+            // Check for move-limit tiles
+            levelHasMoveTiles = false;
+            for (let r = 0; r < originalGrid.length; r++) {
+                for (let c = 0; c < originalGrid[r].length; c++) {
+                    const ch = originalGrid[r][c];
+                    if (ch >= 'a' && ch <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(ch)) {
+                        levelHasMoveTiles = true;
+                        break;
+                    }
+                }
+                if (levelHasMoveTiles) break;
+            }
+            remainingMoves = Infinity;
+            const movesCounter = document.getElementById('moves-counter');
+            const movesNumber = document.getElementById('moves-number');
+            if (levelHasMoveTiles) {
+                movesCounter.classList.remove('hidden');
+                movesNumber.textContent = '∞';
+            } else {
+                movesCounter.classList.add('hidden');
+            }
+
             if (!preserveHistory) {
                 historyStack = [];
             }
@@ -1095,9 +1547,8 @@
             const topTitleText = document.getElementById('level-title-display');
             topTitleText.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}`;
 
-            // Re-enable global overlays hidden by Title screen launcher
             document.getElementById('btn-menu').classList.remove('hidden');
-            document.getElementById('btn-customize').classList.add('hidden'); // Hide color customization inside active stage
+            document.getElementById('btn-customize').classList.add('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
@@ -1224,6 +1675,7 @@
 
         function changeZoom(amount) {
             targetOverworldZoom = Math.min(2.5, Math.max(0.6, targetOverworldZoom + amount));
+            localStorage.setItem('boxpush_overworld_zoom', targetOverworldZoom);
         }
 
         function showClearConfirm() {
@@ -1237,10 +1689,10 @@
         }
 
         function confirmClearData() {
-            // Remove gameplay save flags keeping key structure names identical
             localStorage.removeItem('boxpush_highest_level');
             localStorage.removeItem('boxpush_completed_levels');
             localStorage.removeItem('boxpush_attempted_levels');
+            localStorage.removeItem('boxpush_overworld_pos');
 
             highestLevelPlayed = 1;
             completedLevels = new Set();
@@ -1353,7 +1805,6 @@
 
                         let associatedNode = null;
                         for (const cell of compCells) {
-                            // Translate cell row-column to Cartesian coordinate lookup key
                             const x = cell.c;
                             const y = overworldGrid.length - 1 - cell.r;
                             const key = `${x},${y}`;
@@ -1590,7 +2041,6 @@
                 }
             }
 
-            // Translate array index destination to Cartesian key for node lookups
             const destX = nextCol;
             const destY = overworldGrid.length - 1 - nextRow;
             const coordKey = `${destX},${destY}`;
@@ -1606,11 +2056,10 @@
                 }
             }
 
-            // Check stage re-entry lock block limits
             if (targetNode && targetNode.type === 'level') {
                 const targetLvlIdx = targetNode.index;
                 if (targetLvlIdx === lastExitedLevelIndex && (Date.now() - lastExitTime < 750)) {
-                    return; // Prevent immediate re-entry during 0.75s cooldown
+                    return;
                 }
             }
 
@@ -1618,6 +2067,8 @@
             visualOverworldPlayer.targetX = nextCol;
             visualOverworldPlayer.targetY = nextRow;
             playSfx('step');
+
+            localStorage.setItem('boxpush_overworld_pos', JSON.stringify(overworldPlayerPos));
 
             if (targetNode && targetNode.type === 'info') {
                 showBottomHudText(targetNode.text, 5000);
@@ -1655,115 +2106,242 @@
                 return;
             }
 
-            const targetCell = activeGrid[nextRow][nextCol];
-            const cellOrig = originalGrid[nextRow][nextCol];
-            const isYellow = isDigit(cellOrig);
-            const isPassable = !isYellow || isYellowWallPassable(nextRow, nextCol);
+            // Simulation of the move (ice sliding etc.)
+            let simPlayer = { r: playerPos.r, c: playerPos.c };
+            let simBlocks = visualBlocks.map(b => ({
+                id: b.id,
+                char: b.char,
+                isTrapped: b.isTrapped,
+                tiles: b.tiles.map(t => ({ x: t.targetX, y: t.targetY }))
+            }));
 
-            const pushedBlock = visualBlocks.find(b => b.tiles.some(t => t.targetX === nextCol && t.targetY === nextRow));
+            function getSimBlockAt(r, c) {
+                return simBlocks.find(b => b.tiles.some(t => t.x === c && t.y === r));
+            }
 
-            if (!pushedBlock && (targetCell === ' ' || targetCell === '.' || targetCell === 'x' || isYellow) && isPassable) {
-                saveStateToHistory();
+            function canPushSimBlock(block, pdr, pdc) {
+                for (const tile of block.tiles) {
+                    const destR = tile.y + pdr;
+                    const destC = tile.x + pdc;
 
-                activeGrid[playerPos.r][playerPos.c] = getBaselineCell(playerPos.r, playerPos.c);
-                
-                if (targetCell === '.') {
-                    activeGrid[nextRow][nextCol] = '+';
-                } else {
-                    activeGrid[nextRow][nextCol] = '@';
-                }
-
-                playerPos = { r: nextRow, c: nextCol };
-                visualPlayer.targetX = nextCol;
-                visualPlayer.targetY = nextRow;
-
-                playSfx('step');
-            } 
-            else if (pushedBlock) {
-                let canPush = true;
-
-                for (const tile of pushedBlock.tiles) {
-                    const destR = tile.targetY + dr;
-                    const destC = tile.targetX + dc;
-
-                    if (destR < 0 || destR >= activeGrid.length || destC < 0 || destC >= (activeGrid[destR] ? activeGrid[destR].length : 0)) {
-                        canPush = false;
-                        break;
+                    if (destR < 0 || destR >= activeGrid.length || destC < 0 || destC >= getMaxColumns(activeGrid)) {
+                        return false;
                     }
 
-                    const destCell = activeGrid[destR][destC];
-                    const destOrig = originalGrid[destR][destC];
-                    const isDestYellow = isDigit(destOrig);
-                    const isDestPassable = !isDestYellow || isYellowWallPassable(destR, destC);
+                    const destOrig = originalGrid[destR]?.[destC];
+                    if (destOrig === '#') return false;
 
-                    // Player position will be vacated, so we can push into it
-                    const isPlayerCell = (destR === playerPos.r && destC === playerPos.c);
-
-                    const isValidTileType = (isPlayerCell || destCell === ' ' || destCell === '.' || destCell === 'x' || isDestYellow) && isDestPassable;
-
-                    const otherBlockCollision = visualBlocks.find(b => b.id !== pushedBlock.id && b.tiles.some(t => t.targetX === destC && t.targetY === destR));
-
-                    const isOccupiedBySelf = pushedBlock.tiles.some(t => t.targetX === destC && t.targetY === destR);
-
-                    if ((!isValidTileType && !isOccupiedBySelf) || (otherBlockCollision && !isOccupiedBySelf)) {
-                        canPush = false;
-                        break;
+                    if (isDigit(destOrig)) {
+                        if (!isYellowWallPassable(destR, destC)) return false;
                     }
+
+                    if (destOrig >= 'a' && destOrig <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(destOrig)) {
+                        return false;
+                    }
+
+                    const otherB = getSimBlockAt(destR, destC);
+                    if (otherB && otherB.id !== block.id) return false;
+
+                    if (destR === simPlayer.r && destC === simPlayer.c) return false;
                 }
+                return true;
+            }
 
-                if (canPush) {
-                    saveStateToHistory();
+            function isWalkableForSimPlayer(r, c) {
+                if (r < 0 || r >= activeGrid.length || c < 0 || c >= getMaxColumns(activeGrid)) return false;
+                const orig = originalGrid[r]?.[c];
+                if (orig === '#') return false;
+                if (isDigit(orig)) {
+                    if (!isYellowWallPassable(r, c)) return false;
+                }
+                return true;
+            }
 
-                    pushedBlock.tiles.forEach(tile => {
-                        activeGrid[tile.targetY][tile.targetX] = getBaselineCell(tile.targetY, tile.targetX);
-                    });
+            let playerSliding = true;
+            let slidingBlockIds = new Set();
+            let actionCommitted = false;
 
-                    let hasGoalContact = false;
-                    let hasTrapContact = false;
+            const MAX_SLIDE_STEPS = 100;
+            let step = 0;
+            let anyMovementThisStep = true;
 
-                    pushedBlock.tiles.forEach(tile => {
-                        tile.targetX += dc;
-                        tile.targetY += dr;
+            while (anyMovementThisStep && step < MAX_SLIDE_STEPS) {
+                anyMovementThisStep = false;
+                step++;
 
-                        const newCellOrig = originalGrid[tile.targetY][tile.targetX];
-                        if (newCellOrig === '.') hasGoalContact = true;
-                        if (newCellOrig === 'x') hasTrapContact = true;
-                    });
+                if (playerSliding) {
+                    const pNextR = simPlayer.r + dr;
+                    const pNextC = simPlayer.c + dc;
 
-                    pushedBlock.tiles.forEach(tile => {
-                        const cellOrig = originalGrid[tile.targetY][tile.targetX];
-                        const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
-                        activeGrid[tile.targetY][tile.targetX] = isGoal ? '*' : pushedBlock.char;
-                    });
+                    if (isWalkableForSimPlayer(pNextR, pNextC)) {
+                        const encounteredBlock = getSimBlockAt(pNextR, pNextC);
+                        if (encounteredBlock) {
+                            if (canPushSimBlock(encounteredBlock, dr, dc)) {
+                                actionCommitted = true;
+                                encounteredBlock.tiles.forEach(t => {
+                                    t.x += dc;
+                                    t.y += dr;
+                                });
+                                simPlayer.r = pNextR;
+                                simPlayer.c = pNextC;
+                                anyMovementThisStep = true;
 
-                    activeGrid[playerPos.r][playerPos.c] = getBaselineCell(playerPos.r, playerPos.c);
-                    activeGrid[nextRow][nextCol] = originalGrid[nextRow][nextCol] === '.' ? '+' : '@';
+                                const blockOnIce = encounteredBlock.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
+                                if (blockOnIce) {
+                                    slidingBlockIds.add(encounteredBlock.id);
+                                } else {
+                                    slidingBlockIds.delete(encounteredBlock.id);
+                                }
 
-                    playerPos = { r: nextRow, c: nextCol };
-                    visualPlayer.targetX = nextCol;
-                    visualPlayer.targetY = nextRow;
-
-                    pushedBlock.tiles.forEach(tile => {
-                        if (hasTrapContact) {
-                            createExplosion(tile.targetX, tile.targetY, '#ef4444', 12);
-                        } else if (hasGoalContact) {
-                            createExplosion(tile.targetX, tile.targetY, '#22c55e', 10);
+                                const playerOnIce = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
+                                if (!playerOnIce) {
+                                    playerSliding = false;
+                                }
+                            } else {
+                                playerSliding = false;
+                            }
                         } else {
-                            createExplosion(tile.targetX, tile.targetY, '#555555', 4);
+                            actionCommitted = true;
+                            simPlayer.r = pNextR;
+                            simPlayer.c = pNextC;
+                            anyMovementThisStep = true;
+
+                            const playerOnIce = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
+                            if (!playerOnIce) {
+                                playerSliding = false;
+                            }
                         }
+                    } else {
+                        playerSliding = false;
+                    }
+                }
+
+                if (slidingBlockIds.size > 0) {
+                    const sortedBlockIds = Array.from(slidingBlockIds).sort((idA, idB) => {
+                        const bA = simBlocks.find(b => b.id === idA);
+                        const bB = simBlocks.find(b => b.id === idB);
+                        if (dr > 0) {
+                            const maxYA = Math.max(...bA.tiles.map(t => t.y));
+                            const maxYB = Math.max(...bB.tiles.map(t => t.y));
+                            return maxYB - maxYA;
+                        }
+                        if (dr < 0) {
+                            const minYA = Math.min(...bA.tiles.map(t => t.y));
+                            const minYB = Math.min(...bB.tiles.map(t => t.y));
+                            return minYA - minYB;
+                        }
+                        if (dc > 0) {
+                            const maxXA = Math.max(...bA.tiles.map(t => t.x));
+                            const maxXB = Math.max(...bB.tiles.map(t => t.x));
+                            return maxXB - maxXA;
+                        }
+                        if (dc < 0) {
+                            const minXA = Math.min(...bA.tiles.map(t => t.x));
+                            const minXB = Math.min(...bB.tiles.map(t => t.x));
+                            return minXA - minXB;
+                        }
+                        return 0;
                     });
 
-                    if (hasTrapContact) {
-                        playSfx('fail');
-                    } else if (hasGoalContact) {
-                        playSfx('dock');
-                    } else {
-                        playSfx('push');
+                    for (const bId of sortedBlockIds) {
+                        const block = simBlocks.find(b => b.id === bId);
+                        if (canPushSimBlock(block, dr, dc)) {
+                            actionCommitted = true;
+                            block.tiles.forEach(t => {
+                                t.x += dc;
+                                t.y += dr;
+                            });
+                            anyMovementThisStep = true;
+
+                            const blockOnIce = block.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
+                            if (!blockOnIce) {
+                                slidingBlockIds.delete(bId);
+                            }
+                        } else {
+                            slidingBlockIds.delete(bId);
+                        }
                     }
                 }
             }
 
-            checkRules();
+            // After simulation, compute new remaining moves if action committed
+            let movesDepleted = false;
+            let newRemainingMoves = remainingMoves; // default
+
+            if (actionCommitted) {
+                // Check if we landed on a move tile
+                const finalCell = originalGrid[simPlayer.r]?.[simPlayer.c];
+                if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
+                    const limit = MOVE_TILE_LIMITS[finalCell];
+                    newRemainingMoves = (limit === 0) ? Infinity : limit;
+                } else {
+                    // Normal move: decrement if not infinite
+                    if (remainingMoves !== Infinity) {
+                        newRemainingMoves = remainingMoves - 1;
+                        if (newRemainingMoves === 0) {
+                            movesDepleted = true;
+                        }
+                    } else {
+                        newRemainingMoves = remainingMoves; // stays Infinity
+                    }
+                }
+
+                // Save history **before** modifying remainingMoves
+                saveStateToHistory();
+
+                // Now update remainingMoves
+                remainingMoves = newRemainingMoves;
+                updateMovesDisplay();
+
+                // Commit the move (update grid, blocks, player)
+                // Clear out active grid variables
+                for (let r = 0; r < activeGrid.length; r++) {
+                    for (let c = 0; c < activeGrid[r].length; c++) {
+                        activeGrid[r][c] = getBaselineCell(r, c);
+                    }
+                }
+
+                // Write block updates
+                simBlocks.forEach(sb => {
+                    const blockRef = visualBlocks.find(b => b.id === sb.id);
+                    sb.tiles.forEach((tile, idx) => {
+                        const cellOrig = originalGrid[tile.y]?.[tile.x];
+                        const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                        activeGrid[tile.y][tile.x] = isGoal ? '*' : sb.char;
+
+                        blockRef.tiles[idx].targetX = tile.x;
+                        blockRef.tiles[idx].targetY = tile.y;
+                    });
+                });
+
+                // Write player updates
+                playerPos = { r: simPlayer.r, c: simPlayer.c };
+                visualPlayer.targetX = playerPos.c;
+                visualPlayer.targetY = playerPos.r;
+                activeGrid[playerPos.r][playerPos.c] = originalGrid[playerPos.r][playerPos.c] === '.' ? '+' : '@';
+
+                if (step > 1) {
+                    playSfx('push');
+                } else {
+                    playSfx('step');
+                }
+
+                // Check rules (victory, traps, etc.)
+                checkRules();
+
+                // If we ran out of moves and didn't win, trigger failure
+                if (movesDepleted && !isLevelSolved) {
+                    triggerFailureState();
+                }
+            }
+            // If actionCommitted is false, we do nothing (illegal move) – no history saved, no move count change.
+        }
+
+        function updateMovesDisplay() {
+            const numberEl = document.getElementById('moves-number');
+            if (levelHasMoveTiles) {
+                numberEl.textContent = (remainingMoves === Infinity) ? '∞' : remainingMoves;
+            }
         }
 
         function checkRules() {
@@ -1826,6 +2404,7 @@
             const originalVal = originalGrid[r][c];
             if (originalVal === '.' || originalVal === '*' || originalVal === '+') return '.';
             if (originalVal === 'x') return 'x';
+            if (originalVal === 'I') return 'I';
             if (isDigit(originalVal)) return originalVal;
             return ' ';
         }
@@ -1837,7 +2416,8 @@
                 blocks: visualBlocks.map(b => ({
                     ...b,
                     tiles: b.tiles.map(t => ({ ...t }))
-                }))
+                })),
+                remainingMoves: remainingMoves
             });
             if (historyStack.length > 250) {
                 historyStack.shift();
@@ -1851,6 +2431,8 @@
             activeGrid = previousState.grid;
             playerPos = previousState.player;
             visualBlocks = previousState.blocks;
+            remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
+            updateMovesDisplay();
 
             visualPlayer.targetX = playerPos.c;
             visualPlayer.targetY = playerPos.r;
@@ -1862,7 +2444,10 @@
         function resetCurrentLevel() {
             if (gameState !== "level" || isLevelSolved) return;
             saveStateToHistory();
-            loadLevel(activeLevelIndex, true); 
+            loadLevel(activeLevelIndex, true);
+            // Ensure remaining moves reset to Infinity (fresh start)
+            remainingMoves = Infinity;
+            updateMovesDisplay();
         }
 
         function triggerFailureState() {
@@ -1896,7 +2481,6 @@
                 localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
                 buildLevelsSidebar();
 
-                // 0.8s lock delay upon winning
                 setTimeout(() => {
                     exitToOverworld();
                 }, 800);
@@ -1906,7 +2490,6 @@
         function exitToOverworld() {
             const dir = levelEntryState.entryDirection;
             
-            // Set exit limits parameters
             lastExitedLevelIndex = activeLevelIndex;
             lastExitTime = Date.now();
 
@@ -1939,7 +2522,7 @@
             } else {
                 sidebar.classList.add('-translate-x-full');
                 backdrop.classList.add('hidden');
-                cancelClearData(); // Clear delete save confirmations automatically
+                cancelClearData();
             }
         }
 
@@ -1958,10 +2541,8 @@
                 const isCompleted = completedLevels.has(idx);
                 const isAttempted = attemptedLevels.has(idx) && !isCompleted;
                 
-                // Track locking eligibility under custom progressive settings rules
                 const isLevelAccessible = (ENTRANCE_MODE === 0) || (idx === 0) || attemptedLevels.has(idx) || completedLevels.has(idx);
 
-                // Color coding level rows by play states (alternating shades)
                 let bgColor = "bg-white text-black";
                 if (isCompleted) {
                     bgColor = idx % 2 === 0 ? "bg-green-100 hover:bg-green-200 text-black" : "bg-green-200 hover:bg-green-300 text-black";
@@ -1980,6 +2561,10 @@
                 if (isLevelAccessible) {
                     row.onclick = () => {
                         hideSidebar();
+                        if (gameState === "overworld") {
+                            levelEntryState.preEntryPosition = { ...overworldPlayerPos };
+                            levelEntryState.entryDirection = 'up';
+                        }
                         loadLevel(idx);
                     };
                 } else {
@@ -2024,13 +2609,21 @@
                     visualOverworldPlayer.blinkTimer = visualOverworldPlayer.blinkState ? 10 : (120 + Math.random() * 200);
                 }
 
-                // Cartesian HUD displays: X = col, Y = Height - 1 - row
                 const cartesianX = Math.round(visualOverworldPlayer.x);
                 const cartesianY = overworldGrid.length - 1 - Math.round(visualOverworldPlayer.y);
                 document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
             } else {
-                visualPlayer.x += (visualPlayer.targetX - visualPlayer.x) * lerpSpeed;
-                visualPlayer.y += (visualPlayer.targetY - visualPlayer.y) * lerpSpeed;
+                let pDx = visualPlayer.targetX - visualPlayer.x;
+                let pDy = visualPlayer.targetY - visualPlayer.y;
+
+                let pStepX = pDx * LERP_SPEED;
+                let pStepY = pDy * LERP_SPEED;
+
+                if (Math.abs(pStepX) > MAX_ANIMATION_SPEED) pStepX = Math.sign(pStepX) * MAX_ANIMATION_SPEED;
+                if (Math.abs(pStepY) > MAX_ANIMATION_SPEED) pStepY = Math.sign(pStepY) * MAX_ANIMATION_SPEED;
+
+                visualPlayer.x += pStepX;
+                visualPlayer.y += pStepY;
 
                 visualPlayer.blinkTimer--;
                 if (visualPlayer.blinkTimer <= 0) {
@@ -2040,12 +2633,20 @@
 
                 visualBlocks.forEach(block => {
                     block.tiles.forEach(tile => {
-                        tile.x += (tile.targetX - tile.x) * lerpSpeed;
-                        tile.y += (tile.targetY - tile.y) * lerpSpeed;
+                        let bDx = tile.targetX - tile.x;
+                        let bDy = tile.targetY - tile.y;
+
+                        let bStepX = bDx * LERP_SPEED;
+                        let bStepY = bDy * LERP_SPEED;
+
+                        if (Math.abs(bStepX) > MAX_ANIMATION_SPEED) bStepX = Math.sign(bStepX) * MAX_ANIMATION_SPEED;
+                        if (Math.abs(bStepY) > MAX_ANIMATION_SPEED) bStepY = Math.sign(bStepY) * MAX_ANIMATION_SPEED;
+
+                        tile.x += bStepX;
+                        tile.y += bStepY;
                     });
                 });
 
-                // Cartesian levels coordinates display
                 const cartesianX = Math.round(visualPlayer.x);
                 const cartesianY = activeGrid.length - 1 - Math.round(visualPlayer.y);
                 document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
@@ -2095,7 +2696,6 @@
                 -overworldCamera.y * tileSize - tileSize / 2
             );
 
-            // Draw base tiles
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2113,7 +2713,6 @@
                 }
             }
 
-            // Draw path gridlines on empty corridor spaces
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2134,7 +2733,6 @@
                 }
             }
 
-            // Draw clean architectural outer borders
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2161,7 +2759,6 @@
                 }
             }
 
-            // Draw custom floor connectors
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2184,10 +2781,8 @@
                 }
             }
 
-            // Draw interactive levels and Cartesian lock info
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    // Translate current cell r,c to Cartesian coordinate key
                     const cartX = c;
                     const cartY = gridRows - 1 - r;
                     const coordKey = `${cartX},${cartY}`;
@@ -2302,7 +2897,6 @@
                 return 'FLOOR';
             }
 
-            // Draw base tiles
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2321,13 +2915,17 @@
                         ctx.fillStyle = isPassable ? '#facc15' : '#b45309';
                         ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
                     } else {
-                        ctx.fillStyle = '#ffffff';
+                        const cellOrig = originalGrid[r][c] || ' ';
+                        if (cellOrig === 'I') {
+                            ctx.fillStyle = '#bae6fd';
+                        } else {
+                            ctx.fillStyle = '#ffffff';
+                        }
                         ctx.fillRect(x, y, tileSize, tileSize);
                     }
                 }
             }
 
-            // Draw internal grids
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2347,7 +2945,6 @@
                 }
             }
 
-            // Draw solid high-contrast borders
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2374,7 +2971,6 @@
                 }
             }
 
-            // Draw goals and traps inside level maps
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize;
@@ -2385,6 +2981,39 @@
                         const cellOrig = originalGrid[r][c] || ' ';
                         const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
                         const isTrap = cellOrig === 'x';
+                        const isIce = cellOrig === 'I';
+
+                        if (cellOrig >= 'a' && cellOrig <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(cellOrig)) {
+                            const cx = x + tileSize / 2;
+                            const cy = y + tileSize / 2;
+                            const radius = tileSize * 0.3;
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                            ctx.fillStyle = '#fde047';
+                            ctx.fill();
+                            ctx.strokeStyle = '#000000';
+                            ctx.lineWidth = 1.5;
+                            ctx.stroke();
+
+                            const limit = MOVE_TILE_LIMITS[cellOrig];
+                            const label = (limit === 0) ? '∞' : limit;
+                            ctx.fillStyle = '#000000';
+                            ctx.font = `bold ${tileSize * 0.28}px 'Inter', sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(label, cx, cy);
+                        }
+
+                        if (isIce) {
+                            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(x + tileSize * 0.2, y + tileSize * 0.2);
+                            ctx.lineTo(x + tileSize * 0.4, y + tileSize * 0.4);
+                            ctx.moveTo(x + tileSize * 0.6, y + tileSize * 0.6);
+                            ctx.lineTo(x + tileSize * 0.8, y + tileSize * 0.8);
+                            ctx.stroke();
+                        }
 
                         if (isGoal) {
                             const gSize = tileSize * 0.22;
@@ -2420,7 +3049,6 @@
                 }
             }
 
-            // Draw puzzle blocks with clean double-outlines
             visualBlocks.forEach(block => {
                 const margin = tileSize * 0.08;
                 const innerMargin = Math.max(2.5, tileSize * 0.06);
