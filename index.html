@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BoxPush</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
     <!-- Google Fonts: Inter & Material Symbols Outlined -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -34,7 +35,6 @@
     <!-- Floating Left-Center Menu & Back Button Group -->
     <div class="fixed top-6 left-6 z-40 flex flex-col space-y-2">
 
-
         <div class="flex items-center space-x-2">
             <button id="btn-menu" onclick="toggleSidebar()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Open Menu">
                 <span class="material-symbols-outlined select-none text-xl leading-none">menu</span>
@@ -43,12 +43,18 @@
                 <span class="material-symbols-outlined select-none text-xl leading-none">arrow_back</span>
             </button>
         </div>
-        
+
         <!-- Moves Counter (top-left, above buttons) -->
         <div id="moves-counter" class="hidden flex flex-col items-center justify-center bg-transparent text-black select-none">
             <span id="moves-number" class="font-black text-3xl leading-none">∞</span>
             <span class="text-[10px] font-black uppercase tracking-widest">Moves left</span>
         </div>
+
+        <!-- RESPAWN BUTTON – only visible on overworld -->
+        <button id="btn-respawn" onclick="resetOverworldPosition()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Reset position to spawn (2, 2)">
+            <span class="material-symbols-outlined select-none text-xl leading-none">home</span>
+        </button>
+
         <button id="btn-customize" onclick="toggleCustomizeModal()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Customize Character">
             <span class="material-symbols-outlined select-none text-xl leading-none">palette</span>
         </button>
@@ -83,7 +89,7 @@
 
     <!-- Slide-Out Sidebar Menu -->
     <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/30 z-40 hidden transition-opacity duration-300"></div>
-    
+
     <aside id="sidebar-menu" class="fixed top-0 left-0 h-full w-80 bg-white border-r border-black z-50 transform -translate-x-full transition-transform duration-300 flex flex-col rounded-none">
         <div class="p-6 border-b border-black flex justify-between items-center bg-black text-white">
             <h2 class="font-black text-xs tracking-widest uppercase">BOXPUSH MENU</h2>
@@ -171,7 +177,7 @@
             ↑
         </button>
         <div></div>
-        
+
         <button onclick="handleDirectionalInput('left')" class="w-12 h-12 bg-black/5 text-black hover:bg-black/15 active:bg-black/25 flex items-center justify-center font-black text-lg rounded-none select-none border-0 outline-none">
             ←
         </button>
@@ -208,7 +214,7 @@
             </div>
         </div>
         <p class="text-[9px] font-mono text-black/35 tracking-wider uppercase">
-            v1.1 / ice update
+            v3.0 / expansion update
         </p>
     </div>
 
@@ -262,7 +268,7 @@
 
     <script>
         // yes
-        
+
         const ENTRANCE_MODE = 1;
         const LERP_SPEED = 0.22;
         const MAX_ANIMATION_SPEED = 0.24;
@@ -281,7 +287,7 @@
             'j': 9,
             'k': 10,
             'l': 12,
-            'm': 14, //changed
+            'm': 14,
             'n': 16,
             'o': 18,
             'p': 20,
@@ -292,737 +298,1087 @@
             'u': 32,
             'v': 40,
             'w': 50,
-            //'x' is already used by  box avoid
-            'y': 100, //temorary
-            'z': 200, //teporary
+            'y': 100,
+            'z': 200,
         };
 
+        // New block type definitions
+        const ICE_BOX_LETTERS = new Set(['E', 'F', 'G', 'H']);
+        const HEAT_BOX_LETTERS = new Set(['J', 'K', 'L', 'M']);
+        const TRANSPARENT_BOX_LETTERS = new Set(['N', 'O', 'P', 'Q']);
 
-        const LEVELS = [
-            {
-                name: "The start of everything",
-                grid: [
-                    "#########",
-                    "####.####",
-                    "#### ####",
-                    "#       #",
-                    "# @   $ #",
-                    "#       #",
-                    "#########"
-                ]
-            },
-            {
-                name: "More boxes",
-                hint: "There is an order.",
-                grid: [
-                    "#########",
-                    "###   ###",
-                    "#@ $ .###",
-                    "##$##   #",
-                    "#.  ##  #",
-                    "###     #",
-                    "#########"
-                ]
-            },
-            {
-                name: "Last of the basics",
-                hint: "Some boxes are not meant to be pushed all the way at once.",
-                grid: [
-                    "###########",
-                    "###      .#",
-                    "###  ## ###",
-                    "##   #  ###",
-                    "# $ .#$ ###",
-                    "#@##$   .##",
-                    "####  #####",
-                    "###########"
-                ]
-            },
-            {
-                name: "New tiles",
-                grid: [
-                    "###########",
-                    "#@ x     .#",
-                    "###$ # ####",
-                    "##  x#   ##",
-                    "##   #x  ##",
-                    "###     ###",
-                    "#####   ###",
-                    "###########"
-                ]
-            },
-            {
-                name: "Combined together",
-                hint: "Plan your route around the traps so you always have space to push from behind. Walk onto the ice to slide!",
-                grid: [
-                    "###########",
-                    "##x .######",
-                    "##@$.######",
-                    "### ###x ##",
-                    "### ###   #",
-                    "###$###  x#",
-                    "##x.### $##",
-                    "##       ##",
-                    "###  x#####",
-                    "###########"
-                ]
-            },
-            {
-                name: "Push madness",
-                hint: "Think about how to push the box towards the right-top target.",
-                grid: [
-                    "###########",
-                    "#@  x .x#.#",
-                    "# #$# # # #",
-                    "#    $x$x #",
-                    "# #x# # # #",
-                    "#. $x x   #",
-                    "### # ### #",
-                    "###x  $.. #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Locking a room",
-                hint: "You cannot enter the first room later on, so...",
-                grid: [
-                    "###########",
-                    "###########",
-                    "####  #####",
-                    "####      #",
-                    "####.###$ #",
-                    "#. x.$x   #",
-                    "#$ ## #####",
-                    "# @## $ . #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Room ban...?",
-                hint: "Which way should you go?",
-                grid: [
-                    "###########",
-                    "# . $ x.$x#",
-                    "#   # #  x#",
-                    "#####x## .#",
-                    "####   ##$#",
-                    "#      #  #",
-                    "#   ##x#  #",
-                    "# @ ## #  #",
-                    "#####. $x #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Orders",
-                hint: "Which target of the five should be placed first?",
-                grid: [
-                    "###########",
-                    "### .#.x###",
-                    "###  #    #",
-                    "###      .#",
-                    "#### ###..#",
-                    "#### ######",
-                    "#### x   ##",
-                    "#### $ $ ##",
-                    "#### $$$###",
-                    "####@   ###",
-                    "###########"
-                ]
-            },
-            {
-                name: "Win Condition tutorial",
-                grid: [
-                    "###########",
-                    "####   ####",
-                    "### $   ###",
-                    "#  x#######",
-                    "#   # $ . #",
-                    "# @       #",
-                    "#     #####",
-                    "#      .  #",
-                    "#       $ #",
-                    "#  ########",
-                    "###########"
-                ]
-            },
-            {
-                name: "Win condition tutorial II",
-                grid: [
-                    "###########",
-                    "###     ###",
-                    "##     .###",
-                    "####xx#####",
-                    "#         #",
-                    "# @ $  .  #",
-                    "#         #",
-                    "#         #",
-                    "#   $  .  #",
-                    "#         #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Don't stop me",
-                hint: "Get to the lower-right area.",
-                grid: [
-                    "###########",
-                    "#   # $$$ #",
-                    "# @ x  $  #",
-                    "#####$$   #",
-                    "#$x $  $ $#",
-                    "#  $ $$ $ #",
-                    "# $########",
-                    "#  x      #",
-                    "#  #  $ . #",
-                    "#$x#      #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Numbers...",
-                hint: "They correlate to total green segments.",
-                grid: [
-                    "###########",
-                    "#         #",
-                    "# @ $   . #",
-                    "#         #",
-                    "#######11##",
-                    "#         #",
-                    "# .   $   #",
-                    "#         #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Some logic required...",
-                hint: "Not all rooms you get to should be activated the first time you get into the room.",
-                grid: [
-                    "###########",
-                    "#@   #    #",
-                    "# $. 0 $. #",
-                    "#    #    #",
-                    "##33###10##",
-                    "#    #    #",
-                    "# $. 2 $. #",
-                    "#    #    #",
-                    "###########"
-                ]
-            },
-            {
-                name: "Think about it",
-                hint: "Think about positions the top box could be.",
-                grid: [
-                    "############",
-                    "#@.  2$   .#",
-                    "##      # $#",
-                    "###4####2$ #",
-                    "###4###  .##",
-                    "##    2 $3##",
-                    "## $. 2 .3##",
-                    "##. ########",
-                    "############"
-                ]
-            },
-            {
-                name: "Bigger boxes introduction",
-                grid: [
-                    "############",
-                    "#@     #####",
-                    "#  A    ####",
-                    "#  A     . #",
-                    "#          #",
-                    "############"
-                ]
-            },
-            {
-                name: "Possibility",
-                hint: "Which is possible?",
-                grid: [
-                    "###########",
-                    "#      ####",
-                    "# AA    ###",
-                    "#  AABB  ##",
-                    "#@  BB    #",
-                    "##     # .#",
-                    "###########"
-                ]
-            },
-            {
-                name: "Simple..?",
-                hint: "Only some blocks can light up the target.",
-                grid: [
-                    "###########",
-                    "#######  ##",
-                    "#######  ##",
-                    "######AAx##",
-                    "####x    ##",
-                    "#### #$ x##",
-                    "##x@$    ##",
-                    "###. ##xx##",
-                    "### x######",
-                    "###########"
-                ]
-            },
-            {
-                name: "Key-locks",
-                hint: "How to push a box back?",
-                grid: [
-                    "###########",
-                    "###       #",
-                    "# $1  2  .#",
-                    "# ##### ###",
-                    "# #.$ #  ######",
-                    "# #   ##  3$ .#",
-                    "# 1   3   #####",
-                    "#### ### ##",
-                    "#@  $ .  ##",
-                    "###########"
-                ]
-            },
-            {
-                name: "Another set",
-                hint: "Same as the last level.",
-                grid: [
-                    "###########",
-                    "#  ####   ####",
-                    "#. 2   x .$  #",
-                    "#$ #### ####3##",
-                    "#  ####       #",
-                    "#   ##  x$3  .#",
-                    "#12###3#2######",
-                    "#  A     ##",
-                    "#@AA.. ####",
-                    "###########"
-                ]
-            },
-            {
-                name: "Oooh slippery!",
-                grid: [
-                    "#########",
-                    "#     ###",
-                    "#     ###",
-                    "#  IIII.#",
-                    "#  $ ####",
-                    "#@ ######",
-                    "#########"
-                ]
-            },
-            {
-                name: "Diffuclt? No. Fun? Yes!!!!",
-                grid: [
-                    "##########",
-                    "##@##II###",
-                    "##IIIIIII####",
-                    "##IIIIIIII$.#",
-                    "#IIIII#II####",
-                    "#IIIIIIII#",
-                    "##IIIII###",
-                    "##########",
-                    "##########"
-                ]
-            },
-            {
-                name: "Box stopping",
-                hint: "Remember two boxes can't be moving at the same time?",
-                grid: [
-                    "##########",
-                    "#  ###.###",
-                    "# $###I###",
-                    "#  ###I###",
-                    "#@$IIIIIx#",
-                    "#        #",
-                    "#######  #",
-                    "##########",
-                ]
-            },
-            {
-                name: "Box rolling",
-                grid: [
-                    "###########",
-                    "##  ###.###",
-                    "## $##II###",
-                    "##@ ##II###",
-                    "##I$ IIIIIx#",
-                    "## II I  II#",
-                    "##  I I#III#",
-                    "####  I#####",
-                    "###########",
-                ]
-            },
-            {
-                name: "Bug? Feature!",
-                grid: [
-                    "###########",
-                    "###  Ix.###",
-                    "### #x#####",
-                    "### II$ ###",
-                    "### x   ###",
-                    "####I######",
-                    "##@$I#",
-                    "###  #",
-                    "######",
-                ]
-            },
-            {
-                name: "Do it yourself",
-                hint: "Do it Left",
-                grid: [
-                    "########", 
-                    "#     ##",
-                    "# .   ##",
-                    "#     ##",
-                    "###xxx###",
-                    "#  III  #",
-                    "# $   $ #",
-                    "#@      #",
-                    "########",
-                ]
-            },
-            {
-                name: "Again and again",
-                hint: "Blocks as walls, twice.",
-                grid: [
-                    "##########",
-                    "#.   xx  #",
-                    "####x### #", 
-                    "# I III  #",
-                    "# x#xx#  #",
-                    "#xIIxI## #",
-                    "##Ix#xx#x#",
-                    "##IIxIII #",
-                    "## $   $ #",
-                    "##@     ##",
-                    "#########",
-                ]
-            },
-            {
-                name: "Cooperation",
-                hint: "Blocks as walls II.",
-                grid: [
-                    "###########",
-                    "###    .###",
-                    "###xx#xI .#",
-                    "##I I##I###",
-                    "##I. x I###",
-                    "##  I# xI #",
-                    "####x##I  #",
-                    "##  I $I ##",
-                    "# $ IxII ##",
-                    "# @    11#",
-                    "#########",
-                ]
-            },
-            {
-                name: "Big maps",
-                hint: "How many should you put up there? Also blocks as walls",
-                grid: [
-                    "#############",
-                    "###############",
-                    "#####         #",
-                    "#####         #",
-                    "#####IIIIIII  ##",
-                    "#####xxxxxxx######",
-                    "##  xIIIIIIIx#####",
-                    "# $ xIIIIIIIx####",
-                    "#@ IxIIIIIIIxI..#",
-                    "# $IxIII#IIIx####",
-                    "#  IxIIIIIIIxI  #",
-                    "# $#xIIIIIIIxI  #",
-                    "#   xIIIIIIIxI  #",
-                    "# $ #xxxxxxx#####",
-                    "#   ###.#III#####",
-                    "#################",
-                    "#################",
-                    "#############",
-                ]
-            },
-            {
-                name: "Big block and ice",
-                grid: [
-                    "###########",
-                    "# x##  ####",
-                    "#   I I ###",
-                    "#I  ##xx###",
-                    "# I ##..###",
-                    "#xxx#######",
-                    "# I      ##",
-                    "##I       #",
-                    "##        #",
-                    "####xxxx###",
-                    "##    I ###",
-                    "#     I ###",
-                    "# AA    ###",
-                    "# @    ###",
-                    "#########",
-                ]
-            },
-            {
-                name: "Ice pushing",
-                hint: "Should you push the long piece up, or...?",
-                grid: [
-                    "#######",
-                    "###.###",
-                    "###x###########",
-                    "#..I   ########",
-                    "#  Ix  ########",
-                    "#     ######  #",
-                    "#I1#I ##  2   #",
-                    "#Ix#  #0I     #",
-                    "#xx## #x x#  ##",
-                    "# I      x#I #",
-                    "##  #x#####  #",
-                    "#####     #xx#",
-                    "#          I #",
-                    "# @ $ $ AA    #",
-                    "##I0          #",
-                    "##x############",
-                    "##.#",
-                    "####",
-                ]
-            },
-            {
-                name: "More bigger boxes",
-                hint: "Re-arrangements",
-                grid: [
-                    "###########",
-                    "###########",
-                    "#####x x ##",
-                    "##xx#I  Ix#  #",
-                    "#   xIIIIIx   .#",
-                    "#xA   DDxx## . #",
-                    "# AA@  Dx #",
-                    "#x$  BBB  #",
-                    "#  x x ###",
-                    "#########",
-                ]
-            },
-            {
-                name: "Flags",
-                hint: "You can go back to a flag to refill moves. Note: they don't add up",
-                grid: [
-                    "###########",
-                    "#   #     #",
-                    "# @ m     #",
-                    "#   #     #",
-                    "#######$  #",
-                    "#######   #",
-                    "###    x  #",
-                    "### .     #",
-                    "###       #",
-                    "#########",
-                ]
-            },
-            {
-                name: "Diagonal thing..?",
-                hint: "1 is a trap, 2 could be a trap, 4 can skip one",
-                grid: [
-                    "#########",
-                    "#########",
-                    "##.     #",
-                    "###### x####",
-                    "#  k     b #",
-                    "#   c     g#",
-                    "#    b     #",
-                    "#     e    #",
-                    "#b     b   #",
-                    "#       e  #",
-                    "#  g       #",
-                    "#   b     i#",
-                    "#    e     #",
-                    "#     b    #",
-                    "#b  $  c   #",
-                    "# g     g  #",
-                    "##@#########",
-                    "#####",
-                ]
-            },
-            {
-                name: "More flags",
-                hint: "When should you refill/go for next?",
-                grid: [
-                    "##########",
-                    "#@######.###",
-                    "#m   ##    #",
-                    "# x$ ##    #",
-                    "#  # x#  e #",
-                    "#    x#    #",
-                    "#   x###x  #",
-                    "##         #",
-                    "####     g##",
-                    "############",
-                ]
-            },
-            {
-                name: "Move wisely",
-                hint: "Save a move with ice",
-                grid: [
-                    "######",
-                    "### .#",
-                    "###  #",
-                    "###  #",
-                    "###  #",
-                    "###  ######",
-                    "###  #  #l#",
-                    "#    #  II#",
-                    "#  III  I #",
-                    "#      II #",
-                    "####### I #",
-                    "#  III    #",
-                    "# $        #",
-                    "#          #",
-                    "####1######",
-                    "###.  $x###",
-                    "#@r #   ###",
-                    "###########",
-                ]
-            },
-            {
-                name: "Range",
-                hint: "You on ice",
-                grid: [
-                    "###############",
-                    "#m ####     .##",
-                    "#   c#   ######",
-                    "# x$ g   ##",
-                    "#III     ##",
-                    "#    ##  ##",
-                    "#######  ##",
-                    "#    #    #",
-                    "# @  #  $ #",
-                    "#    k    #",
-                    "#    #    #",
-                    "###########",
-                ]
-            },
-            {
-                name: "Optimization",
-                hint: "Push to shorten your path.",
-                grid: [
-                    "############",
-                    "###  #######",
-                    "###      $.#",
-                    "###   $ ####",
-                    "##   $######",
-                    "##   x$  ###",
-                    "#IIIIII  ###",
-                    "####  $x  ##",
-                    "#######$  ##",
-                    "##   x$  $##",
-                    "##      x ##",
-                    "## o ###  ##",
-                    "###@########",
-                    "#####",
-                ]
-            },
-            {
-                name: "Prep and push.",
-                hint: "Push to shorten your path.",
-                grid: [
-                    "#############",
-                    "###p  @  ####",
-                    "##AA   DDxx ####",
-                    "#    $  DB  #x ##",
-                    "#  CCC ABB      #",
-                    "###### A xxx##  #",
-                    "##############  #",
-                    "##############  #",
-                    "##############  #",
-                    "##############..#",
-                    "#################"
-                ]
-            },
-            {
-                name: "Many things",
-                hint: "The '3 1' path is a lie.",
-                grid: [
-                    "#############",
-                    "########x   #",
-                    "## . 3 1$ $ #",
-                    "##@       I########",
-                    "### ######x#####  #",
-                    "### ######x####AA #",
-                    "##  #####   #     #",
-                    "##        .    $  #",
-                    "#    ###1   ##  ###",
-                    "#..################",
-                    "###################",
-                ]
-            },
+        function isIceBox(char) { return ICE_BOX_LETTERS.has(char); }
 
+        function isHeatBox(char) { return HEAT_BOX_LETTERS.has(char); }
 
-        ];
+        function isTransparentBox(char) { return TRANSPARENT_BOX_LETTERS.has(char); }
+
+        function isStructureLetter(char) {
+            if (!char) return false;
+            // Uppercase letters A-Z except known special ones
+            if (char < 'A' || char > 'Z') return false;
+            if (char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ' || char === 'I')
+                return false;
+            // include our new sets
+            return true;
+        }
+
+        const LEVELS = [{
+            name: "The start of everything",
+            grid: [
+                "#########",
+                "####.####",
+                "#### ####",
+                "#       #",
+                "# @   $ #",
+                "#       #",
+                "#########"
+            ]
+        }, {
+            name: "More boxes",
+            hint: "There is an order.",
+            grid: [
+                "#########",
+                "###   ###",
+                "#@ $ .###",
+                "##$##   #",
+                "#.  ##  #",
+                "###     #",
+                "#########"
+            ]
+        }, {
+            name: "Last of the basics",
+            hint: "Some boxes are not meant to be pushed all the way at once.",
+            grid: [
+                "###########",
+                "###      .#",
+                "###  ## ###",
+                "##   #  ###",
+                "# $ .#$ ###",
+                "#@##$   .##",
+                "####  #####",
+                "###########"
+            ]
+        }, {
+            name: "New tiles",
+            grid: [
+                "###########",
+                "#@ x     .#",
+                "###$ # ####",
+                "##  x#   ##",
+                "##   #x  ##",
+                "###     ###",
+                "#####   ###",
+                "###########"
+            ]
+        }, {
+            name: "Combined together",
+            hint: "Plan your route around the traps so you always have space to push from behind. Walk onto the ice to slide!",
+            grid: [
+                "###########",
+                "##x .######",
+                "##@$.######",
+                "### ###x ##",
+                "### ###   #",
+                "###$###  x#",
+                "##x.### $##",
+                "##       ##",
+                "###  x#####",
+                "###########"
+            ]
+        }, {
+            name: "Push madness",
+            hint: "Think about how to push the box towards the right-top target.",
+            grid: [
+                "###########",
+                "#@  x .x#.#",
+                "# #$# # # #",
+                "#    $x$x #",
+                "# #x# # # #",
+                "#. $x x   #",
+                "### # ### #",
+                "###x  $.. #",
+                "###########"
+            ]
+        }, {
+            name: "Locking a room",
+            hint: "You cannot enter the first room later on, so...",
+            grid: [
+                "###########",
+                "###########",
+                "####  #####",
+                "####      #",
+                "####.###$ #",
+                "#. x.$x   #",
+                "#$ ## #####",
+                "# @ ## $ . #",
+                "###########"
+            ]
+        }, {
+            name: "Room ban...?",
+            hint: "Which way should you go?",
+            grid: [
+                "###########",
+                "# . $ x.$x#",
+                "#   # #  x#",
+                "#####x## .#",
+                "####   ##$#",
+                "#      #  #",
+                "#   ##x#  #",
+                "# @ ## #  #",
+                "#####. $x #",
+                "###########"
+            ]
+        }, {
+            name: "Orders",
+            hint: "Which target of the five should be placed first?",
+            grid: [
+                "###########",
+                "### .#.x###",
+                "###  #    #",
+                "###      .#",
+                "#### ###..#",
+                "#### ######",
+                "#### x   ##",
+                "#### $ $ ##",
+                "#### $$$###",
+                "####@   ###",
+                "###########"
+            ]
+        }, {
+            name: "Win Condition tutorial",
+            grid: [
+                "###########",
+                "####   ####",
+                "### $   ###",
+                "#  x#######",
+                "#   # $ . #",
+                "# @       #",
+                "#     #####",
+                "#      .  #",
+                "#       $ #",
+                "#  ########",
+                "###########"
+            ]
+        }, {
+            name: "Win condition tutorial II",
+            grid: [
+                "###########",
+                "###     ###",
+                "##     .###",
+                "####xx#####",
+                "#         #",
+                "# @ $  .  #",
+                "#         #",
+                "#         #",
+                "#   $  .  #",
+                "#         #",
+                "###########"
+            ]
+        }, {
+            name: "Don't stop me",
+            hint: "Get to the lower-right area.",
+            grid: [
+                "###########",
+                "#   # $$$ #",
+                "# @ x  $  #",
+                "#####$$   #",
+                "#$x $  $ $#",
+                "#  $ $$ $ #",
+                "# $########",
+                "#  x      #",
+                "#  #  $ . #",
+                "#$x#      #",
+                "###########"
+            ]
+        }, {
+            name: "Numbers...",
+            hint: "They correlate to total green segments.",
+            grid: [
+                "###########",
+                "#         #",
+                "# @ $   . #",
+                "#         #",
+                "#######11##",
+                "#         #",
+                "# .   $   #",
+                "#         #",
+                "###########"
+            ]
+        }, {
+            name: "Some logic required...",
+            hint: "Not all rooms you get to should be activated the first time you get into the room.",
+            grid: [
+                "###########",
+                "#@   #    #",
+                "# $. 0 $. #",
+                "#    #    #",
+                "##33###10##",
+                "#    #    #",
+                "# $. 2 $. #",
+                "#    #    #",
+                "###########"
+            ]
+        }, {
+            name: "Think about it",
+            hint: "Think about positions the top box could be.",
+            grid: [
+                "############",
+                "#@.  2$   .#",
+                "##      # $#",
+                "###4####2$ #",
+                "###4###  .##",
+                "##    2 $3##",
+                "## $. 2 .3##",
+                "##. ########",
+                "############"
+            ]
+        }, {
+            name: "Bigger boxes introduction",
+            grid: [
+                "############",
+                "#@     #####",
+                "#  A    ####",
+                "#  A     . #",
+                "#          #",
+                "############"
+            ]
+        }, {
+            name: "Possibility",
+            hint: "Which is possible?",
+            grid: [
+                "###########",
+                "#      ####",
+                "# AA    ###",
+                "#  AABB  ##",
+                "#@  BB    #",
+                "##     # .#",
+                "###########"
+            ]
+        }, {
+            name: "Simple..?",
+            hint: "Only some blocks can light up the target.",
+            grid: [
+                "###########",
+                "#######  ##",
+                "#######  ##",
+                "######AAx##",
+                "####x    ##",
+                "#### #$ x##",
+                "##x@$    ##",
+                "###. ##xx##",
+                "### x######",
+                "###########"
+            ]
+        }, {
+            name: "Key-locks",
+            hint: "How to push a box back?",
+            grid: [
+                "###########",
+                "###       #",
+                "# $1  2  .#",
+                "# ##### ###",
+                "# #.$ #  ######",
+                "# #   ##  3$ .#",
+                "# 1   3   #####",
+                "#### ### ##",
+                "#@  $ .  ##",
+                "###########"
+            ]
+        }, {
+            name: "Another set",
+            hint: "Same as the last level.",
+            grid: [
+                "###########",
+                "#  ####   ####",
+                "#. 2   x .$  #",
+                "#$ #### ####3##",
+                "#  ####       #",
+                "#   ##  x$3  .#",
+                "#12###3#2######",
+                "#  A     ##",
+                "#@AA.. ####",
+                "###########"
+            ]
+        }, {
+            name: "Oooh slippery!",
+            grid: [
+                "#########",
+                "#     ###",
+                "#     ###",
+                "#  IIII.#",
+                "#  $ ####",
+                "#@ ######",
+                "#########"
+            ]
+        }, {
+            name: "Diffuclt? No. Fun? Yes!!!!",
+            grid: [
+                "##########",
+                "##@##II###",
+                "##IIIIIII####",
+                "##IIIIIIII$.#",
+                "#IIIII#II####",
+                "#IIIIIIII#",
+                "##IIIII###",
+                "##########",
+                "##########"
+            ]
+        }, {
+            name: "Box stopping",
+            hint: "Remember two boxes can't be moving at the same time?",
+            grid: [
+                "##########",
+                "#  ###.###",
+                "# $###I###",
+                "#  ###I###",
+                "#@$IIIIIx#",
+                "#        #",
+                "#######  #",
+                "##########",
+            ]
+        }, {
+            name: "Box rolling",
+            grid: [
+                "###########",
+                "##  ###.###",
+                "## $##II###",
+                "##@ ##II###",
+                "##I$ IIIIIx#",
+                "## II I  II#",
+                "##  I I#III#",
+                "####  I#####",
+                "###########",
+            ]
+        }, {
+            name: "Bug? Feature!",
+            grid: [
+                "###########",
+                "###  Ix.###",
+                "### #x#####",
+                "### II$ ###",
+                "### x   ###",
+                "####I######",
+                "##@$I#",
+                "###  #",
+                "######",
+            ]
+        }, {
+            name: "Do it yourself",
+            hint: "Do it Left",
+            grid: [
+                "########",
+                "#     ##",
+                "# .   ##",
+                "#     ##",
+                "###xxx###",
+                "#  III  #",
+                "# $   $ #",
+                "#@      #",
+                "########",
+            ]
+        }, {
+            name: "Again and again",
+            hint: "Blocks as walls, twice.",
+            grid: [
+                "##########",
+                "#.   xx  #",
+                "####x### #",
+                "# I III  #",
+                "# x#xx#  #",
+                "#xIIxI## #",
+                "##Ix#xx#x#",
+                "##IIxIII #",
+                "## $   $ #",
+                "##@     ##",
+                "#########",
+            ]
+        }, {
+            name: "Cooperation",
+            hint: "Blocks as walls II.",
+            grid: [
+                "###########",
+                "###    .###",
+                "###xx#xI .#",
+                "##I I##I###",
+                "##I. x I###",
+                "##  I# xI #",
+                "####x##I  #",
+                "##  I $I ##",
+                "# $ IxII ##",
+                "# @    11#",
+                "#########",
+            ]
+        }, {
+            name: "Big maps",
+            hint: "How many should you put up there? Also blocks as walls",
+            grid: [
+                "#############",
+                "###############",
+                "#####         #",
+                "#####         #",
+                "#####IIIIIII  ##",
+                "#####xxxxxxx######",
+                "##  xIIIIIIIx#####",
+                "# $ xIIIIIIIx####",
+                "#@ IxIIIIIIIxI..#",
+                "# $IxIII#IIIx####",
+                "#  IxIIIIIIIxI  #",
+                "# $#xIIIIIIIxI  #",
+                "#   xIIIIIIIxI  #",
+                "# $ #xxxxxxx#####",
+                "#   ###.#III#####",
+                "#################",
+                "#################",
+                "#############",
+            ]
+        }, {
+            name: "Big block and ice",
+            grid: [
+                "###########",
+                "# x##  ####",
+                "#   I I ###",
+                "#I  ##xx###",
+                "# I ##..###",
+                "#xxx#######",
+                "# I      ##",
+                "##I       #",
+                "##        #",
+                "####xxxx###",
+                "##    I ###",
+                "#     I ###",
+                "# AA    ###",
+                "# @    ###",
+                "#########",
+            ]
+        }, {
+            name: "Ice pushing",
+            hint: "Should you push the long piece up, or...?",
+            grid: [
+                "#######",
+                "###.###",
+                "###x###########",
+                "#..I   ########",
+                "#  Ix  ########",
+                "#     ######  #",
+                "#I1#I ##  2   #",
+                "#Ix#  #0I     #",
+                "#xx## #x x#  ##",
+                "# I      x#I #",
+                "##  #x#####  #",
+                "#####     #xx#",
+                "#          I #",
+                "# @ $ $ AA    #",
+                "##I0          #",
+                "##x############",
+                "##.#",
+                "####",
+            ]
+        }, {
+            name: "More bigger boxes",
+            hint: "Re-arrangements",
+            grid: [
+                "###########",
+                "###########",
+                "#####x x ##",
+                "##xx#I  Ix#  #",
+                "#   xIIIIIx   .#",
+                "#xA   DDxx## . #",
+                "# AA@  Dx #",
+                "#x$  BBB  #",
+                "#  x x ###",
+                "#########",
+            ]
+        }, {
+            name: "Flags",
+            hint: "You can go back to a flag to refill moves. Note: they don't add up",
+            grid: [
+                "###########",
+                "#   #     #",
+                "# @ m     #",
+                "#   #     #",
+                "#######$  #",
+                "#######   #",
+                "###    x  #",
+                "### .     #",
+                "###       #",
+                "#########",
+            ]
+        }, {
+            name: "Diagonal thing..?",
+            hint: "1 is a trap, 2 could be a trap, 4 can skip one",
+            grid: [
+                "#########",
+                "#########",
+                "##.     #",
+                "###### x####",
+                "#  k     b #",
+                "#   c     g#",
+                "#    b     #",
+                "#     e    #",
+                "#b     b   #",
+                "#       e  #",
+                "#  g       #",
+                "#   b     i#",
+                "#    e     #",
+                "#     b    #",
+                "#b  $  c   #",
+                "# g     g  #",
+                "##@#########",
+                "#####",
+            ]
+        }, {
+            name: "More flags",
+            hint: "When should you refill/go for next?",
+            grid: [
+                "##########",
+                "#@######.###",
+                "#m   ##    #",
+                "# x$ ##    #",
+                "#  # x#  e #",
+                "#    x#    #",
+                "#   x###x  #",
+                "##         #",
+                "####     g##",
+                "############",
+            ]
+        }, {
+            name: "Move wisely",
+            hint: "Save a move with ice",
+            grid: [
+                "######",
+                "### .#",
+                "###  #",
+                "###  #",
+                "###  #",
+                "###  ######",
+                "###  #  #l#",
+                "#    #  II#",
+                "#  III  I #",
+                "#      II #",
+                "####### I #",
+                "#  III    #",
+                "# $        #",
+                "#          #",
+                "####1######",
+                "###.  $x###",
+                "#@r #   ###",
+                "###########",
+            ]
+        }, {
+            name: "Range",
+            hint: "You on ice",
+            grid: [
+                "###############",
+                "#m ####     .##",
+                "#   c#   ######",
+                "# x$ g   ##",
+                "#III     ##",
+                "#    ##  ##",
+                "#######  ##",
+                "#    #    #",
+                "# @  #  $ #",
+                "#    k    #",
+                "#    #    #",
+                "###########",
+            ]
+        }, {
+            name: "Optimization",
+            hint: "Push to shorten your path.",
+            grid: [
+                "############",
+                "###  #######",
+                "###      $.#",
+                "###   $ ####",
+                "##   $######",
+                "##   x$  ###",
+                "#IIIIII  ###",
+                "####  $x  ##",
+                "#######$  ##",
+                "##   x$  $##",
+                "##      x ##",
+                "## o ###  ##",
+                "###@########",
+                "#####",
+            ]
+        }, {
+            name: "Prep and push.",
+            hint: "Push to shorten your path.",
+            grid: [
+                "#############",
+                "###p  @  ####",
+                "##AA   DDxx ####",
+                "#    $  DB  #x ##",
+                "#  CCC ABB      #",
+                "###### A xxx##  #",
+                "##############  #",
+                "##############  #",
+                "##############  #",
+                "##############..#",
+                "#################"
+            ]
+        }, {
+            name: "Many things",
+            hint: "The '3 1' path is a lie.",
+            grid: [
+                "#############",
+                "########x   #",
+                "## . 3 1$ $ #",
+                "##@       I########",
+                "### ######x#####  #",
+                "### ######x####AA #",
+                "##  #####   #     #",
+                "##        .    $  #",
+                "#    ###1   ##  ###",
+                "#..################",
+                "###################",
+            ]
+        }, {
+            name: "Ice path",
+            hint: "Use the other box to stop the ice box first.",
+            grid: [
+                "##########",
+                "#        #",
+                "# @      #",
+                "#        #",
+                "# E A    #",
+                "#        #",
+                "#      xx#",
+                "#      x.#",
+                "#      xx#",
+                "#        #",
+                "##########",
+            ]
+        }, {
+            name: "Ice stop",
+            hint: "Right down right up",
+            grid: [
+                "##########",
+                "#    #####",
+                "# @  #####",
+                "#    ##.##",
+                "# E  ##x##",
+                "#        #",
+                "#  xxxxxx#",
+                "#xxx     #",
+                "# A      #",
+                "#        #",
+                "##########",
+            ]
+
+        }, {
+            name: "Double ice push",
+            hint: "Observe the walls length.",
+            grid: [
+                "##########",
+                "####    ##",
+                "# @ E   ##",
+                "#  F     #",
+                "#       x.#",
+                "#        #",
+                "#        #",
+                "##       #",
+                "##    x###",
+                "####   ###",
+                "##########",
+            ]
+        }, {
+            name: "Pathways",
+            hint: "Push one to another, but the other one.",
+            grid: [
+                "##########",
+                "### .  ###",
+                "# @    ###",
+                "#  E   ###",
+                "#        #",
+                "#xxxxxxxx#",
+                "#        #",
+                "##      ##",
+                "## F  # ##",
+                "## .    ##",
+                "##########",
+            ]
+        }, {
+            name: "One-way border transversal",
+            hint: "Do something in the beginning",
+            grid: [
+                "##########",
+                "#####   ##",
+                "# @     ##",
+                "#  E  F ##",
+                "#   ..  ##",
+                "##  .    #",
+                "## G  H  #",
+                "## .     #",
+                "##   #####",
+                "##########",
+            ]
+        }, {
+            name: "Fire path",
+            hint: "They cannot touch other things.",
+            grid: [
+                "##########",
+                "##      ##",
+                "# @    J #",
+                "#$$      #",
+                "#$$   $$ #",
+                "#     $$ #",
+                "#        #",
+                "#$$   . ##",
+                "##$$    ##",
+                "##########",
+            ]
+        }, {
+            name: "Push others out",
+            hint: "Push other tiles out of the way.",
+            grid: [
+                "##########",
+                "##      ##",
+                "# @    J #",
+                "#        #",
+                "# A   $###",
+                "# A   ####",
+                "#       .#",
+                "#  BB   ##",
+                "##      ##",
+                "##########",
+            ]
+        }, {
+            name: "More fire",
+            hint: "Only one fits, and move others to open the way.",
+            grid: [
+                "##########",
+                "#@  KK KK#",
+                "# K K  K #",
+                "#        #",
+                "#  KK KK #",
+                "#  K  K  #",
+                "#        #",
+                "#  KK KK #",
+                "#  K  K .#",
+                "##########",
+            ]
+        }, {
+            name: "woah",
+            grid: [
+                "##########",
+                "#KKK.# @ #",
+                "#K  ## $ #",
+                "#KK #x   #",
+                "#     x  #",
+                "#0     KK#",
+                "#   ## K #",
+                "# K   .  #",
+                "#KK      #",
+                "##########",
+            ]
+        }, {
+            name: "Overdecoration",
+            hint: "you can ignore the red-outlined tiles completely.",
+            grid: [
+                "##########",
+                "#KKKKKKKK#",
+                "#K@   f K#",
+                "#K $.$. K#",
+                "#K .$.$ K#",
+                "#Kb$.$. K#",
+                "#K .$.$ K#",
+                "#K      K#",
+                "#KKKKKKKK#",
+                "##########",
+            ]
+        }, {
+            name: "Multi-push",
+            hint: "There is no push limit.",
+            grid: [
+                "#####",
+                "# @ #",
+                "#   #",
+                "# N #",
+                "#   #",
+                "# N #",
+                "#   #",
+                "# N #",
+                "# . #",
+                "# . #",
+                "# . #",
+                "#####",
+            ]
+        }, {
+            name: "Very fun",
+            hint: "You don't have to push both the + onto the holes, you can use small blocks instead.",
+            grid: [
+                "###########",
+                "###       #",
+                "# ONONO   .#",
+                "# NONNN   ..#",
+                "# ONONO   .#",
+                "#@PQPQP   #",
+                "# NONON   .#",
+                "# OOONO   ..#",
+                "# NONON   .#",
+                "###       #",
+                "############",
+            ]
+        }, {
+            name: "no heat loss this time :D",
+            hint: "use a box to push another box.",
+            grid: [
+                "##########",
+                "# b      #",
+                "#bNb   N #",
+                "#  @  NN #",
+                "#  NN N  #",
+                "#   NN   #",
+                "#     x x#",
+                "#######.##",
+                "##########",
+            ]
+        }, {
+            name: "You can push in bulk!",
+            grid: [
+                "###########",
+                "#@o...... #",
+                "#oNNNNN   #",
+                "#  OOOO   #",
+                "#   PQP   #",
+                "#    NO   #",
+                "# .....   #",
+                "#  ....   #",
+                "#         #",
+                "###########",
+            ]
+        }, {
+            name: "Ice sliding pro max",
+            grid: [
+                "############",
+                "#   .   ####",
+                "#    @    ##",
+                "##E         #",
+                "#       E   #",
+                "#          #",
+                "# .        #",
+                "###xxxxx#  #",
+                "###  $ x ###",
+                "###      ##",
+                "###      ##",
+                "###  ######",
+                "######",
+            ]
+        }, {
+            name: "oddly familiar layout...",
+            hint: "get them up there at once first.",
+            grid: [
+                "##########",
+                "#####  ..#",
+                "####0  ..#",
+                "###  0   #",
+                "# NP  0###",
+                "# NQ  ####",
+                "#@   #####",
+                "##########",
+            ]
+        }, {
+            name: "Pushing in bulk",
+            hint: "just push the red out of the way.",
+            grid: [
+                "############",
+                "##   K K ###",
+                "##E   K K#.#",
+                "#    K K #x#",
+                "# K        #",
+                "### K K K  #",
+                "### @K  ####",
+                "#########",
+            ]
+        }, {
+            name: "Lane pushers",
+            hint: "Lane changers",
+            grid: [
+                "############",
+                "#.    $    #",
+                "## #### ####",
+                "#   H .    #",
+                "### ##### ##",
+                "#    $     #",
+                "### ### ####",
+                "#    $  .  #",
+                "#### #### ##",
+                "#@.$       #",
+                "############",
+            ]
+        }, {
+            name: "Navigation problems",
+            grid: [
+                "#########",
+                "####    #",
+                "####AAA #######",
+                "####          #",
+                "#### PQPQPQPQ #",
+                "#### QPQPQPQP #",
+                "#### PQPQPQPQ #",
+                "#### QPQPQPQP #",
+                "#### PQPQPQPQ #",
+                "#### QPQPQPQP #",
+                "#### PQPQPQPQ #",
+                "#### QPQPQPQP #",
+                "## b@         #",
+                "## . ##########",
+                "###############",
+            ]
+        }, {
+            name: "Last.",
+            grid: [
+                "###########",
+                "#####     #",
+                "#@    $ L #",
+                "#   L #   #",
+                "# L ####$ #",
+                "# #    I  #",
+                "#  II II  #",
+                "## #  # .##",
+                "## .  .  ##",
+                "####.. IIx#",
+                "###########",
+            ]
+        }, {
+            name: "Test Level 1",
+            special: true,
+            hint: "Test everything!",
+            grid: [
+                "################",
+                "#@             #",
+                "#         0 .  #",
+                "# $ $ AA  1 .  #",
+                "#         2 .  #",
+                "# $ $ A   3 .  #",
+                "#     A   4 .  #",
+                "#              #",
+                "################"
+            ]
+        }, {
+            name: "Test Level 2",
+            special: true,
+            hint: "Test everything!",
+            grid: [
+                "#########################",
+                "#@                      #",
+                "#      A  0 I I a f k p #",
+                "# $ $ AA  1 I   b g l q #",
+                "#         2 I   c h m r #",
+                "# $ $ A   3     d i n s #",
+                "#     A   4     e j o t #",
+                "#                       #",
+                "# u x AA .              #",
+                "# v y    .              #",
+                "# w z    .              #",
+                "#                       #",
+                "#########################"
+            ]
+        }, {
+            name: "Test Level 3",
+            special: true,
+            hint: "Test everything!",
+            grid: [
+                "#########################",
+                "#@                        #",
+                "#      A  0 I I a f k p . #",
+                "# $ $ AA  1 I   b g l q . #",
+                "#         2 I   c h m r . #",
+                "# $ $ A   3     d i n s . #",
+                "#     A   4     e j o t . #",
+                "#                         #",
+                "# u x AA E E L L OPOP   #",
+                "# v y      E   L        #",
+                "# w z    EE  LL  OO    x#",
+                "#                     x.#",
+                "#########################"
+            ]
+        }, ];
+
         const LAUNCH_TARGET = -1;
 
-        const RULES_CODEX = [
-            {
-                name: "How to win",
-                unlockAtLevel: 1,
-                desc: "Move using **Arrow keys**, **WASD** or the touch D-pad. Push the block onto the target."
-            },
-            {
-                name: "Computer hotkeys",
-                unlockAtLevel: 1,
-                desc: "Use `z` to revert an action and use `r` to reset. You can revert a reset action!"
-            },
-            {
-                name: "Red hazards",
-                unlockAtLevel: 4,
-                desc: "A box cannot be on top of the crosshair (`x`) tiles. You will be locked until you undo."
-            },
-            {
-                name: "Win condition",
-                unlockAtLevel: 4,
-                desc: "All boxes are green **or** all green spots have a box on top of them."
-            },
-            {
-                name: "Yellow walls",
-                unlockAtLevel: 13,
-                desc: "Yellow walls can be passed only when **exactly** that many endpoints are satisfied."
-            },
-            {
-                name: "Bigger structures",
-                unlockAtLevel: 16,
-                desc: "Some blocks span multiple cells and move together as connected structures."
-            },
-            {
-                name: "Ice blocks",
-                unlockAtLevel: 21,
-                desc: "You can boxes slip on them. Be reminded that you can still only push one box at a time. Players pushing a box out of ice will give it some extra boost (1 more block)."
-            },
-            {
-                name: "Ice push mechanic",
-                unlockAtLevel: 25,
-                desc: "When you push a block out of ice, while you're getting into ice, after the move you'll be on ice, which makes you slide until you're out of ice, making the block 2 blocks out of ice and you one block behind it. That way, the block will not be on top of the red avoid tile, which will be fine."
-            },
-            {
-                name: "Moves changer",
-                unlockAtLevel: 33,
-                desc: "In all levels, you start with infinite moves. When you touch a move changer **your remaining moves become the number written on the tile**. It replaces your remaining moves, and the same tile can be used muitiple times. If you run out of moves you cannot move anymore. **Boxes cannot push onto or through this tile.**"
-            }
-        ];
+        const RULES_CODEX = [{
+            name: "How to win",
+            unlockAtLevel: 1,
+            desc: "Move using **Arrow keys**, **WASD** or the touch D-pad. Push the block onto the target."
+        }, {
+            name: "Computer hotkeys",
+            unlockAtLevel: 1,
+            desc: "Use `z` to revert an action and use `r` to reset. You can revert a reset action!"
+        }, {
+            name: "Red hazards",
+            unlockAtLevel: 4,
+            desc: "A box cannot be on top of the crosshair (`x`) tiles. You will be locked until you undo."
+        }, {
+            name: "Win condition",
+            unlockAtLevel: 11,
+            desc: "All boxes are green **or** all green spots have a box on top of them."
+        }, {
+            name: "Yellow walls",
+            unlockAtLevel: 13,
+            desc: "Yellow walls can be passed only when **exactly** that many endpoints are satisfied."
+        }, {
+            name: "Bigger structures",
+            unlockAtLevel: 16,
+            desc: "Some blocks span multiple cells and move together as connected structures."
+        }, {
+            name: "Ice blocks",
+            unlockAtLevel: 21,
+            desc: "You can boxes slip on them. Be reminded that you can still only push one box at a time. Players pushing a box out of ice will give it some extra boost (1 more block)."
+        }, {
+            name: "Ice push mechanic",
+            unlockAtLevel: 25,
+            desc: "When you push a block out of ice, while you're getting into ice, after the move you'll be on ice, which makes you slide until you're out of ice, making the block 2 blocks out of ice and you one block behind it. That way, the block will not be on top of the red avoid tile, which will be fine."
+        }, {
+            name: "Moves changer",
+            unlockAtLevel: 33,
+            desc: "In all levels, you start with infinite moves. When you touch a move changer **your remaining moves become the number written on the tile**. It replaces your remaining moves, and the same tile can be used multiple times. If you run out of moves you cannot move anymore. **Boxes cannot push onto or through this tile.**"
+        }, {
+            name: "Iced large boxes",
+            unlockAtLevel: 41,
+            desc: "Iced Boxes slide when pushed until they hit a wall, another box, or the player. They have a blue outline."
+        }, {
+            name: "Heated large boxes",
+            unlockAtLevel: 46,
+            desc: "Heated Boxes will cause a failure if any border (not corner) touches another box. They have a red outline."
+        }, {
+            name: "Half-transparent blocks",
+            unlockAtLevel: 51,
+            desc: "These boxes can be pushed in groups with other boxes in this group, bypassing the one-box limit."
+        }, ];
 
         /************************************************************************
          * OVERWORLD GRID CONFIGURATION
          ************************************************************************/
         const OVERWORLD_COMPRESSED = [
-            "#[28]         #[50]",
-            "#[28]         #[50]",
-            "#[28]         #[50]",
-            "#[20]       L         #[50]",
-            "#[20]       L         #[50]",
-            "#[20]       L         #[50]",
-            "#[28]         ### [25]#[55]",
-            "#[28]         ### [25]#[55]",
-            "#[28]         ### [25]#[55]",
-            "#[31]   #[6] [3]#### [6]### [9]###[55]",
-            "#[31]LLL#[6] [3]####L[6]### [9]###[55]",
-            "#[28]   [8]#[2]L[3]#### [6]###[4]LLL###[50]",
-            "#[14] [13]L   [8]#[2] [3]#### [6]###[4]   ###[50]",
-            "#[14] [13]L   [8]#[2] [13]L  [4]   #[50]",
-            "#[14] [13]L   [8]#[2] [13]L  [4]   #[50]",
-            "#[28]   [8]#[2] [13]L  [4]   #[50]",
-            "#[28]   #[19]   #[3] [9]#[25]",
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
+            "#[72]L[3]#[30]",
+            "#[67] [13]#[30]",
+            "#[67] [13]#[30]",
+            "#[67] [13]#[30]",
+            "#[67] [3]#[7] [3]#[30]",
+            "#[67] [3]#[7] [3]#[30]",
+            "#[28]         #[30] [3]#[7] [3]#[30]",
+            "#[28]         #[30] [13]#[30]",
+            "#[28]         #[30] [13]#[30]",
+            "#[20]       L         #[30] [13]#[30]",
+            "#[20]       L         #[35]   #[40]",
+            "#[20]       L         #[35]   #[40]",
+            "#[28]         ### [25]#[7]LLL#[40]",
+            "#[28]         ### [25]#[2] [13]#[40]",
+            "#[28]         ### [25]#[2] [13]#[40]",
+            "#[31]   #[6] [3]#### [6]### [9]## [13]#[40]",
+            "#[31]LLL#[6] [3]####L[6]### [9]## [13]#[40]",
+            "#[28]   [8]#[2]L[3]#### [6]###[4]LLL###[3] [13]#[40]",
+            "#[14] [13]L   [8]#[2] [3]#### [6]###[4]   ###[3] [13]#[40]",
+            "#[14] [13]L   [8]#[2] [13]L  [4]   #[5] [13]#[40]",
+            "#[14] [13]L   [8]#[2] [13]L  [4]   #[10]   #[40]",
+            "#[28]   [8]#[2] [13]L  [4]   #[10]   #[40]",
+            "#[28]   #[19]   #[3] [9]#[7]   #[25]",
             "#[28]   #[19]   #[3] [9]L [9]#[25]",
             "#[28]   #[19]   #[3] [9]L [9]#[25]",
             "#[28]LLL###[17]LLL#[3] [9]L [9]#[25]",
@@ -1038,98 +1394,141 @@
         const OVERWORLD = {
             compressedGrid: OVERWORLD_COMPRESSED,
             nodes: {
-                "2,2":   { type: "info", text: "Use arrow buttons / wasd keys / arrow keys to move." },
-                "8,2":   { type: "level", index: 0, label: "1" },
-                "10,2":  { type: "level", index: 1, label: "2" },
-                "12,2":  { type: "level", index: 2, label: "3" },
-                "15,2":  { type: "lock", required: 3 },
-                
-                "19,2":  { type: "level", index: 3, label: "4" },
-                "21,2":  { type: "level", index: 4, label: "5" },
-                "23,2":  { type: "level", index: 5, label: "6" },
-                "23,4":  { type: "lock", required: 6 },
-                
-                "24,6":   { type: "info", text: "It's intended to do levels in order." },
-                "26,6":   { type: "level", index: 6, label: "7" },
-                "28,6":   { type: "level", index: 7, label: "8" },
-                "30,6":   { type: "level", index: 8, label: "9" },
-                "32,4":  { type: "lock", required: 9 },
-                
-                "29,2":   { type: "info", text: "Tip: You can always check back the rules in the menu." },
-                "33,2":   { type: "level", index: 9, label: "10" },
-                "35,2":   { type: "level", index: 10, label: "11" },
-                "29,8":  { type: "lock", required: 11 },
+                "2,2": { type: "info", text: "Use arrow buttons / wasd keys / arrow keys to move." },
+                "8,2": { type: "level", index: 0, label: "1" },
+                "10,2": { type: "level", index: 1, label: "2" },
+                "12,2": { type: "level", index: 2, label: "3" },
+                "15,2": { type: "lock", required: 3 },
 
-                "5,4":    { type: "lock", required: 1, text: "Requires 8 completed levels to pass." },
-                "29,15":   { type: "level", index: 11, label: "12" },
-                "34,15":   { type: "level", index: 12, label: "13" },
-                "36,15":   { type: "level", index: 13, label: "14" },
-                "34,13":    { type: "info", text: "If you can't complete a level, consider using a hint!" },
-                "36,13":    { type: "level", index: 14, label: "15" },
+                "19,2": { type: "level", index: 3, label: "4" },
+                "21,2": { type: "level", index: 4, label: "5" },
+                "23,2": { type: "level", index: 5, label: "6" },
+                "23,4": { type: "lock", required: 6 },
 
-                "32,17":  { type: "lock", required: 15 },
-                "30,21":   { type: "level", index: 15, label: "16" },
-                "32,21":   { type: "level", index: 16, label: "17" },
-                "34,21":   { type: "level", index: 17, label: "18" },
+                "24,6": { type: "info", text: "It's intended to do levels in order." },
+                "26,6": { type: "level", index: 6, label: "7" },
+                "28,6": { type: "level", index: 7, label: "8" },
+                "30,6": { type: "level", index: 8, label: "9" },
+                "32,4": { type: "lock", required: 9 },
 
-                "32,23":   { type: "info", text: "Good luck on #19 and #20 ;)" },
-                "30,23":    { type: "level", index: 18, label: "19" },
-                "34,23":   { type: "level", index: 19, label: "20" },
-                
-                "27,23":  { type: "lock", required: 20 },
-                "25,23":   { type: "info", text: "Congratulations! You've reached the end of this section." },
-                "23,23":   { type: "info", text: "Go down for more content." },
-                "21,23":   { type: "info", text: "Things will get a bit harder, good luck!" },
-                
-                "27,14":  { type: "lock", required: 16 },
-                "25,14":   { type: "info", text: "Room of general tips and information 1" },
-                "23,14":   { type: "info", text: "Customize yourself with the button on top left." },
-                "21,14":   { type: "info", text: "Zoom in/out with the bottom buttons, obviously." },
-                "19,14":   { type: "info", text: "You can enter a level from menu too, and exit a level with exit button/menu." },
-                "17,14":   { type: "info", text: "In the menu: Grey = Undiscovered, Yellow = Discovered, not completed, Green = Completed" },
-                "15,14":   { type: "info", text: "Game too easy? Later area are a bit harder." },
+                "29,2": { type: "info", text: "Tip: You can always check back the rules in the menu." },
+                "33,2": { type: "level", index: 9, label: "10" },
+                "35,2": { type: "level", index: 10, label: "11" },
+                "29,8": { type: "lock", required: 11 },
 
-                "34,6":  { type: "lock", required: 20 },
-                "38,6":   { type: "level", index: 20, label: "21" },
-                "40,6":   { type: "level", index: 21, label: "22" },
-                "46,6":   { type: "level", index: 22, label: "23" },
-                "48,6":   { type: "level", index: 23, label: "24" },
-                
-                "51,8":  { type: "lock", required: 24 },
-                "51,13":   { type: "info", text: "This next feature is (probably) important." },
-                "49,13":   { type: "level", index: 24, label: "25" },
-                "49,15":   { type: "level", index: 25, label: "26" },
-                "51,15":   { type: "level", index: 26, label: "27" },
-                "43,13":   { type: "level", index: 27, label: "28" },
-                "41,13":   { type: "level", index: 28, label: "29" },
-                "41,16":  { type: "lock", required: 29 },
-                "41,18":   { type: "level", index: 29, label: "30" },
-                "41,20":   { type: "level", index: 30, label: "31" },
-                "43,20":   { type: "level", index: 31, label: "32" },
-                
-                "49,17":  { type: "lock", required: 32 },
-                "49,20":   { type: "level", index: 32, label: "33" },
-                "51,20":   { type: "level", index: 33, label: "34" },
-                
-                "47,20":   { type: "info", text: "Feature time!" },
-                "57,20":   { type: "level", index: 34, label: "35" },
-                "57,18":   { type: "level", index: 35, label: "36" },
-                
-                "63,20":   { type: "level", index: 36, label: "37" },
-                "63,18":   { type: "level", index: 37, label: "38" },
-                
-                "60,16":  { type: "lock", required: 38 },
-                "53,13":  { type: "lock", required: 38 },
-                "60,14":   { type: "info", text: "Final levels" },
-                "60,9":   { type: "info", text: "Good luck on these two." },
-                "57,9":   { type: "level", index: 38, label: "39" },
-                "63,9":   { type: "level", index: 39, label: "40" },
-                
-                "68,9":   { type: "info", text: "Congratulations on completing area 2!" },
-                "70,9":   { type: "info", text: "This is the end of the game, for now, again." },
-                "72,9":   { type: "info", text: "Check for future updates and (probably) join my discord :D thanks for playing!" },
-                
-                
+                "5,4": { type: "lock", required: 1, text: "Requires 8 completed levels to pass." },
+                "29,15": { type: "level", index: 11, label: "12" },
+                "34,15": { type: "level", index: 12, label: "13" },
+                "36,15": { type: "level", index: 13, label: "14" },
+                "34,13": { type: "info", text: "If you can't complete a level, consider using a hint!" },
+                "36,13": { type: "level", index: 14, label: "15" },
+
+                "32,17": { type: "lock", required: 15 },
+                "30,21": { type: "level", index: 15, label: "16" },
+                "32,21": { type: "level", index: 16, label: "17" },
+                "34,21": { type: "level", index: 17, label: "18" },
+                "32,25": { type: "level", index: 60, label: "T1" }, //test
+
+                "34,25": { type: "info", text: "This is a test level, you can use it to test all previous mechanics." },
+                "30,25": { type: "info", text: "They do not count towards regular progress on completion." },
+
+                "32,23": { type: "info", text: "Good luck on #19 and #20 ;)" },
+                "30,23": { type: "level", index: 18, label: "19" },
+                "34,23": { type: "level", index: 19, label: "20" },
+
+                "27,23": { type: "lock", required: 20 },
+                "25,23": { type: "info", text: "Congratulations! You've reached the end of this section." },
+                "23,23": { type: "info", text: "Go down for more content." },
+                "21,23": { type: "info", text: "Things will get a bit harder, good luck!" },
+
+                "27,14": { type: "lock", required: 16 },
+                "25,14": { type: "info", text: "Room of general tips and information 1" },
+                "23,14": { type: "info", text: "Customize yourself with the button on top left." },
+                "21,14": { type: "info", text: "Zoom in/out with the bottom buttons, obviously." },
+                "19,14": { type: "info", text: "You can enter a level from menu too, and exit a level with exit button/menu." },
+                "17,14": { type: "info", text: "In the menu: Grey = Undiscovered, Yellow = Discovered, not completed, Green = Completed" },
+                "15,14": { type: "info", text: "Game too easy? Later area are a bit harder." },
+
+                "34,6": { type: "lock", required: 20 },
+                "38,6": { type: "level", index: 20, label: "21" },
+                "40,6": { type: "level", index: 21, label: "22" },
+                "46,6": { type: "level", index: 22, label: "23" },
+                "48,6": { type: "level", index: 23, label: "24" },
+
+                "51,8": { type: "lock", required: 24 },
+                "51,13": { type: "info", text: "This next feature is (probably) important." },
+                "49,13": { type: "level", index: 24, label: "25" },
+                "49,15": { type: "level", index: 25, label: "26" },
+                "51,15": { type: "level", index: 26, label: "27" },
+                "43,13": { type: "level", index: 27, label: "28" },
+                "41,13": { type: "level", index: 28, label: "29" },
+                "41,16": { type: "lock", required: 29 },
+                "41,18": { type: "level", index: 29, label: "30" },
+                "41,20": { type: "level", index: 30, label: "31" },
+                "43,20": { type: "level", index: 31, label: "32" },
+
+                "49,17": { type: "lock", required: 32 },
+                "49,20": { type: "level", index: 32, label: "33" },
+                "51,20": { type: "level", index: 33, label: "34" },
+
+                "47,20": { type: "info", text: "Feature time!" },
+                "57,20": { type: "level", index: 34, label: "35" },
+                "57,18": { type: "level", index: 35, label: "36" },
+                "60,20": { type: "level", index: 61, label: "T2" },
+                "63,20": { type: "level", index: 36, label: "37" },
+                "63,18": { type: "level", index: 37, label: "38" },
+
+                "60,16": { type: "lock", required: 38 },
+                "53,13": { type: "lock", required: 38 },
+                "60,14": { type: "info", text: "Final levels" },
+                "60,9": { type: "info", text: "Good luck on these two." },
+                "57,9": { type: "level", index: 38, label: "39" },
+                "63,9": { type: "level", index: 39, label: "40" },
+                "65,9": { type: "lock", required: 40 },
+
+                "68,9": { type: "info", text: "Congratulations on completing area 2!" },
+                "70,9": { type: "info", text: "Continue here to area 3." },
+
+                "73,12": { type: "info", text: "Pick a path! You'll have to do both eventually anyways." },
+                "73,17": { type: "info", text: "Left: 41-45, Right: 46-50" },
+
+
+
+                //Fire path
+                "70,17": { type: "info", text: "Fire path" },
+                "70,15": { type: "level", index: 40, label: "41" },
+                "68,15": { type: "level", index: 41, label: "42" },
+                "68,17": { type: "level", index: 42, label: "43" },
+                "68,19": { type: "level", index: 43, label: "44" },
+                "70,19": { type: "level", index: 44, label: "45" },
+
+                //Ice path
+                "76,17": { type: "info", text: "Ice path" },
+                "76,15": { type: "level", index: 45, label: "46" },
+                "78,15": { type: "level", index: 46, label: "47" },
+                "78,17": { type: "level", index: 47, label: "48" },
+                "78,19": { type: "level", index: 48, label: "49" },
+                "76,19": { type: "level", index: 49, label: "50" },
+
+                "73,21": { type: "lock", required: 50 },
+                "73,25": { type: "info", text: "You can do these in any order but it's heavily recommended to do in order (since new mechanic)" },
+                "76,25": { type: "level", index: 50, label: "51" },
+                "78,25": { type: "level", index: 51, label: "52" },
+                "78,27": { type: "level", index: 52, label: "53" },
+                "78,29": { type: "level", index: 53, label: "54" },
+                "78,31": { type: "level", index: 54, label: "55" },
+                "76,25": { type: "level", index: 55, label: "56" },
+                "76,31": { type: "level", index: 56, label: "57" },
+                "70,31": { type: "level", index: 57, label: "58" },
+                "68,31": { type: "level", index: 58, label: "59" },
+                "68,29": { type: "level", index: 59, label: "60" },
+
+                "68,25": { type: "level", index: 62, label: "T3" },
+
+                "73,33": { type: "lock", required: 60 },
+                "73,35": { type: "info", text: "GG! You win! Thanks for playing!" },
+                //remember to change the test level's index on future updates!!
+
             }
         };
 
@@ -1142,18 +1541,18 @@
         }
 
         // Core Game Engine State
-        let gameState = "title"; 
+        let gameState = "title";
         let activeLevelIndex = 0;
         let activeGrid = [];
         let originalGrid = [];
         let playerPos = { r: 0, c: 0 };
         let historyStack = [];
-        
+
         let isLevelFailed = false;
         let isLevelSolved = false;
 
         let overworldGrid = expandOverworldGrid(OVERWORLD.compressedGrid);
-        let overworldPlayerPos = { r: 1, c: 2 }; 
+        let overworldPlayerPos = { r: 1, c: 2 };
         let visualOverworldPlayer = { x: 2, y: 1, targetX: 2, targetY: 1, facing: 'right', blinkTimer: 0, blinkState: false };
 
         let overworldCamera = { x: 2, y: 1 };
@@ -1196,13 +1595,7 @@
             return char >= '0' && char <= '9';
         }
 
-        function isStructureLetter(char) {
-            if (!char) return false;
-            // Only uppercase A-Z are considered structures; lowercase are move tiles
-            if (char < 'A' || char > 'Z') return false;
-            if (char === 'x' || char === 'X' || char === '@' || char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ' || char === 'I') return false;
-            return true;
-        }
+        // Already defined: isIceBox, isHeatBox, isTransparentBox, isStructureLetter
 
         function parseMarkdown(text) {
             return text
@@ -1214,7 +1607,7 @@
         function playSynthBeep(frequency, duration, type = 'sine', volume = 0.05) {
             try {
                 if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    audioCtx = new(window.AudioContext || window.webkitAudioContext)();
                 }
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume();
@@ -1241,7 +1634,7 @@
             } else if (event === 'push') {
                 try {
                     if (!audioCtx) {
-                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        audioCtx = new(window.AudioContext || window.webkitAudioContext)();
                     }
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -1320,7 +1713,6 @@
                 for (let c = 0; c < overworldGrid[r].length; c++) {
                     if (overworldGrid[r][c] === '@') {
                         overworldEntrancePos = { r, c };
-                        // If no saved position, also set player there
                         if (!savedOverworldPos) {
                             overworldPlayerPos = { r, c };
                             visualOverworldPlayer.x = c;
@@ -1355,7 +1747,7 @@
 
             buildLevelsSidebar();
             renderRulesCodex();
-            
+
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('resize', handleResize);
 
@@ -1368,6 +1760,7 @@
             document.getElementById('btn-menu').classList.add('hidden');
             document.getElementById('btn-customize').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
             document.getElementById('level-title-display').classList.add('hidden');
             document.getElementById('overworld-stats').classList.add('hidden');
             document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
@@ -1384,7 +1777,7 @@
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
-            
+
             loadOverworld();
             playSfx('enter');
         }
@@ -1427,17 +1820,17 @@
             RULES_CODEX.forEach(rule => {
                 const block = document.createElement('div');
                 block.className = 'py-5 text-left bg-transparent rounded-none border-b border-neutral-100 last:border-b-0';
-                
+
                 if (highestLevelPlayed >= rule.unlockAtLevel) {
                     block.innerHTML = `
-                        <h4 class="font-black text-[11px] uppercase tracking-widest text-black mb-1.5">${rule.name}</h4>
-                        <div class="text-xs font-normal leading-relaxed text-neutral-600">${parseMarkdown(rule.desc)}</div>
-                    `;
+                            <h4 class="font-black text-[11px] uppercase tracking-widest text-black mb-1.5">${rule.name}</h4>
+                            <div class="text-xs font-normal leading-relaxed text-neutral-600">${parseMarkdown(rule.desc)}</div>
+                        `;
                 } else {
                     block.innerHTML = `
-                        <h4 class="font-black text-[11px] uppercase tracking-widest text-neutral-300 mb-1.5">LOCKED</h4>
-                        <p class="text-xs font-medium italic text-neutral-400">Reach Level ${rule.unlockAtLevel} on the map to unlock this mechanic.</p>
-                    `;
+                            <h4 class="font-black text-[11px] uppercase tracking-widest text-neutral-300 mb-1.5">LOCKED</h4>
+                            <p class="text-xs font-medium italic text-neutral-400">Reach Level ${rule.unlockAtLevel} on the map to unlock this mechanic.</p>
+                        `;
                 }
                 container.appendChild(block);
             });
@@ -1454,7 +1847,7 @@
             hud.textContent = text;
             hud.classList.remove('opacity-0');
             hud.classList.add('opacity-100');
-            
+
             if (window.hudTimer) clearTimeout(window.hudTimer);
             window.hudTimer = setTimeout(() => {
                 hud.classList.remove('opacity-100');
@@ -1468,14 +1861,25 @@
             hud.classList.add('opacity-0');
         }
 
+        // Get number of completed normal levels (non-special)
+        function getCompletedNormalCount() {
+            let count = 0;
+            completedLevels.forEach(idx => {
+                if (LEVELS[idx] && !LEVELS[idx].special) count++;
+            });
+            return count;
+        }
+
         function loadOverworld() {
             gameState = "overworld";
             document.getElementById('level-title-display').textContent = "OVERWORLD MAP";
             document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
             document.getElementById('btn-back').classList.add('hidden');
+            // Show respawn button on overworld
+            document.getElementById('btn-respawn').classList.remove('hidden');
             document.getElementById('bottom-hint-wrapper').classList.add('hidden');
             document.getElementById('moves-counter').classList.add('hidden'); // hide moves counter in overworld
-            
+
             document.getElementById('btn-menu').classList.remove('hidden');
             document.getElementById('btn-customize').classList.remove('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
@@ -1483,7 +1887,7 @@
             document.getElementById('hud-coordinates').classList.remove('hidden');
 
             document.getElementById('overworld-stats').classList.remove('hidden');
-            document.getElementById('overworld-stats').textContent = `${completedLevels.size}/${LEVELS.length}`;
+            document.getElementById('overworld-stats').textContent = `${getCompletedNormalCount()}/${getNormalLevels().length}`;
             document.getElementById('zoom-controls').classList.remove('hidden');
 
             hideBottomHudText();
@@ -1494,34 +1898,32 @@
             if (index < 0 || index >= LEVELS.length) return;
             activeLevelIndex = index;
 
-            // Determine entry position for returning to overworld after level
+            // Hide respawn button inside levels
+            document.getElementById('btn-respawn').classList.add('hidden');
+
             if (gameState === "overworld") {
-                // Coming from overworld (stepping on node or via sidebar)
                 levelEntryState.preEntryPosition = { ...overworldPlayerPos };
-                levelEntryState.entryDirection = 'up'; // direction not critical for exit
+                levelEntryState.entryDirection = 'up';
             } else if (gameState === "title") {
-                // Starting from title screen via LAUNCH_TARGET
                 levelEntryState.preEntryPosition = { ...overworldEntrancePos };
                 levelEntryState.entryDirection = 'right';
             }
-            // If gameState === "level", we keep the existing preEntryPosition (so switching levels preserves exit location)
 
             const actualLevelNum = index + 1;
             if (actualLevelNum > highestLevelPlayed) {
                 highestLevelPlayed = actualLevelNum;
                 localStorage.setItem('boxpush_highest_level', highestLevelPlayed);
             }
-            
+
             attemptedLevels.add(index);
             localStorage.setItem('boxpush_attempted_levels', JSON.stringify(Array.from(attemptedLevels)));
             renderRulesCodex();
-            
+
             const selectedLevel = LEVELS[index];
-            
+
             activeGrid = selectedLevel.grid.map(row => row.split(''));
             originalGrid = selectedLevel.grid.map(row => row.split(''));
 
-            // Check for move-limit tiles
             levelHasMoveTiles = false;
             for (let r = 0; r < originalGrid.length; r++) {
                 for (let c = 0; c < originalGrid[r].length; c++) {
@@ -1550,7 +1952,7 @@
             isLevelSolved = false;
 
             const topTitleText = document.getElementById('level-title-display');
-            topTitleText.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}`;
+            topTitleText.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}${selectedLevel.special ? ' (SPECIAL)' : ''}`;
 
             document.getElementById('btn-menu').classList.remove('hidden');
             document.getElementById('btn-customize').classList.add('hidden');
@@ -1567,9 +1969,9 @@
             const hintTitle = document.getElementById('hints-level-title');
             const hintDesc = document.getElementById('hints-level-desc');
             const bottomHintWrapper = document.getElementById('bottom-hint-wrapper');
-            
+
             hintTitle.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}`;
-            
+
             if (selectedLevel.hint && selectedLevel.hint.trim() !== "") {
                 hintDesc.textContent = selectedLevel.hint;
                 bottomHintWrapper.classList.remove('hidden');
@@ -1613,12 +2015,7 @@
                         visualBlocks.push({
                             id: blockIdCounter++,
                             char: '$',
-                            tiles: [{
-                                x: c,
-                                y: r,
-                                targetX: c,
-                                targetY: r
-                            }],
+                            tiles: [{ x: c, y: r, targetX: c, targetY: r }],
                             isTrapped: false
                         });
                     } else if (isStructureLetter(cellValue)) {
@@ -1631,16 +2028,12 @@
                             compTiles.push(curr);
 
                             const neighbors = [
-                                { r: -1, c: 0 },
-                                { r: 1, c: 0 },
-                                { r: 0, c: -1 },
-                                { r: 0, c: 1 }
+                                { r: -1, c: 0 }, { r: 1, c: 0 }, { r: 0, c: -1 }, { r: 0, c: 1 }
                             ];
 
                             for (const offset of neighbors) {
                                 const nr = curr.r + offset.r;
                                 const nc = curr.c + offset.c;
-
                                 if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length : 0)) {
                                     if (!visited[nr][nc] && activeGrid[nr][nc] === cellValue) {
                                         visited[nr][nc] = true;
@@ -1653,12 +2046,7 @@
                         visualBlocks.push({
                             id: blockIdCounter++,
                             char: cellValue,
-                            tiles: compTiles.map(tile => ({
-                                x: tile.c,
-                                y: tile.r,
-                                targetX: tile.c,
-                                targetY: tile.r
-                            })),
+                            tiles: compTiles.map(tile => ({ x: tile.c, y: tile.r, targetX: tile.c, targetY: tile.r })),
                             isTrapped: false
                         });
                     }
@@ -1668,7 +2056,7 @@
             particles = [];
             buildLevelsSidebar();
             hideSidebar();
-            
+
             gameState = "level";
             playSfx('enter');
             scaleAndRenderCanvas();
@@ -1736,29 +2124,25 @@
         function computeFloorMap() {
             const rows = activeGrid.length;
             const cols = getMaxColumns(activeGrid);
-            
+
             isFloorMap = Array(rows).fill().map(() => Array(cols).fill(false));
-            
             const queue = [];
             const visited = Array(rows).fill().map(() => Array(cols).fill(false));
-            
+
             queue.push({ r: playerPos.r, c: playerPos.c });
             isFloorMap[playerPos.r][playerPos.c] = true;
             visited[playerPos.r][playerPos.c] = true;
-            
+
             while (queue.length > 0) {
                 const curr = queue.shift();
                 const neighbors = [
-                    { r: -1, c:  0 },
-                    { r:  1, c:  0 },
-                    { r:  0, c: -1 },
-                    { r:  0, c:  1 }
+                    { r: -1, c: 0 }, { r: 1, c: 0 }, { r: 0, c: -1 }, { r: 0, c: 1 }
                 ];
-                
+
                 for (const offset of neighbors) {
                     const nr = curr.r + offset.r;
                     const nc = curr.c + offset.c;
-                    
+
                     if (nr >= 0 && nr < rows && nc >= 0 && nc < activeGrid[nr].length) {
                         const cell = activeGrid[nr][nc];
                         if (cell !== '#' && !visited[nr][nc]) {
@@ -1789,17 +2173,14 @@
                             compCells.push(curr);
 
                             const neighbors = [
-                                { r: -1, c: 0 },
-                                { r: 1, c: 0 },
-                                { r: 0, c: -1 },
-                                { r: 0, c: 1 }
+                                { r: -1, c: 0 }, { r: 1, c: 0 }, { r: 0, c: -1 }, { r: 0, c: 1 }
                             ];
 
                             for (const offset of neighbors) {
                                 const nr = curr.r + offset.r;
                                 const nc = curr.c + offset.c;
-
-                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (overworldGrid[nr] ? overworldGrid[nr].length : 0)) {
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (overworldGrid[nr] ? overworldGrid[nr].length :
+                                        0)) {
                                     if (!visited[nr][nc] && overworldGrid[nr][nc] === 'L') {
                                         visited[nr][nc] = true;
                                         queue.push({ r: nr, c: nc });
@@ -1819,8 +2200,10 @@
                             }
                         }
 
-                        let avgR = 0, avgC = 0;
-                        compCells.forEach(cell => { avgR += cell.r; avgC += cell.c; });
+                        let avgR = 0,
+                            avgC = 0;
+                        compCells.forEach(cell => { avgR += cell.r;
+                            avgC += cell.c; });
                         avgR /= compCells.length;
                         avgC /= compCells.length;
 
@@ -1863,17 +2246,14 @@
                             compCells.push(curr);
 
                             const neighbors = [
-                                { r: -1, c: 0 },
-                                { r: 1, c: 0 },
-                                { r: 0, c: -1 },
-                                { r: 0, c: 1 }
+                                { r: -1, c: 0 }, { r: 1, c: 0 }, { r: 0, c: -1 }, { r: 0, c: 1 }
                             ];
 
                             for (const offset of neighbors) {
                                 const nr = curr.r + offset.r;
                                 const nc = curr.c + offset.c;
-
-                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length : 0)) {
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length :
+                                        0)) {
                                     if (!visited[nr][nc] && originalGrid[nr][nc] === char) {
                                         visited[nr][nc] = true;
                                         queue.push({ r: nr, c: nc });
@@ -1882,8 +2262,10 @@
                             }
                         }
 
-                        let avgR = 0, avgC = 0;
-                        compCells.forEach(cell => { avgR += cell.r; avgC += cell.c; });
+                        let avgR = 0,
+                            avgC = 0;
+                        compCells.forEach(cell => { avgR += cell.r;
+                            avgC += cell.c; });
                         avgR /= compCells.length;
                         avgC /= compCells.length;
 
@@ -1931,7 +2313,7 @@
             }
 
             const tileSize = Math.min(Math.floor(cw / gridCols), Math.floor(ch / gridRows), 64);
-            
+
             if (gameState === "overworld") {
                 canvas.width = cw;
                 canvas.height = ch;
@@ -2015,33 +2397,29 @@
         }
 
         function moveOverworldPlayer(dir) {
-            let dr = 0;
-            let dc = 0;
-
-            if (dir === 'up') { dr = -1; visualOverworldPlayer.facing = 'up'; }
-            if (dir === 'down') { dr = 1; visualOverworldPlayer.facing = 'down'; }
-            if (dir === 'left') { dc = -1; visualOverworldPlayer.facing = 'left'; }
-            if (dir === 'right') { dc = 1; visualOverworldPlayer.facing = 'right'; }
+            let dr = 0,
+                dc = 0;
+            if (dir === 'up') { dr = -1;
+                visualOverworldPlayer.facing = 'up'; } else if (dir === 'down') { dr = 1;
+                visualOverworldPlayer.facing = 'down'; } else if (dir === 'left') { dc = -1;
+                visualOverworldPlayer.facing = 'left'; } else if (dir === 'right') { dc = 1;
+                visualOverworldPlayer.facing = 'right'; }
 
             const nextRow = overworldPlayerPos.r + dr;
             const nextCol = overworldPlayerPos.c + dc;
 
-            if (nextRow < 0 || nextRow >= overworldGrid.length || nextCol < 0 || nextCol >= overworldGrid[nextRow].length) {
+            if (nextRow < 0 || nextRow >= overworldGrid.length || nextCol < 0 || nextCol >= overworldGrid[nextRow].length)
                 return;
-            }
-
             const cell = overworldGrid[nextRow][nextCol];
-            if (cell === '#') {
-                return; 
-            }
+            if (cell === '#') return;
 
             if (cell === 'L') {
                 const cluster = lockComponents.find(comp => comp.cells.some(c => c.r === nextRow && c.c === nextCol));
                 if (cluster && cluster.node) {
-                    const completedCount = completedLevels.size;
-                    if (completedCount < cluster.node.required) {
+                    const completedNormal = getCompletedNormalCount();
+                    if (completedNormal < cluster.node.required) {
                         playSfx('fail');
-                        return; 
+                        return;
                     }
                 }
             }
@@ -2053,19 +2431,17 @@
 
             if (targetNode) {
                 if (targetNode.type === 'lock') {
-                    const completedCount = completedLevels.size;
-                    if (completedCount < targetNode.required) {
+                    const completedNormal = getCompletedNormalCount();
+                    if (completedNormal < targetNode.required) {
                         playSfx('fail');
-                        return; 
+                        return;
                     }
                 }
             }
 
             if (targetNode && targetNode.type === 'level') {
                 const targetLvlIdx = targetNode.index;
-                if (targetLvlIdx === lastExitedLevelIndex && (Date.now() - lastExitTime < 750)) {
-                    return;
-                }
+                if (targetLvlIdx === lastExitedLevelIndex && (Date.now() - lastExitTime < 750)) return;
             }
 
             overworldPlayerPos = { r: nextRow, c: nextCol };
@@ -2083,263 +2459,305 @@
 
             if (targetNode && targetNode.type === 'level') {
                 const targetLvlIdx = targetNode.index;
-                
                 levelEntryState.preEntryPosition = { r: nextRow - dr, c: nextCol - dc };
                 levelEntryState.entryDirection = dir;
-
                 triggerCinematicTransition(dir, () => {
                     loadLevel(targetLvlIdx);
                 });
             }
         }
 
-        function movePlayer(dir) {
-            if (isLevelFailed || isLevelSolved) return;
-
-            let dr = 0;
-            let dc = 0;
-
-            if (dir === 'up') { dr = -1; visualPlayer.facing = 'up'; }
-            if (dir === 'down') { dr = 1; visualPlayer.facing = 'down'; }
-            if (dir === 'left') { dc = -1; visualPlayer.facing = 'left'; }
-            if (dir === 'right') { dc = 1; visualPlayer.facing = 'right'; }
-
-            const nextRow = playerPos.r + dr;
-            const nextCol = playerPos.c + dc;
-
-            if (nextRow < 0 || nextRow >= activeGrid.length || nextCol < 0 || nextCol >= activeGrid[nextRow].length) {
-                return;
-            }
-
-            // Simulation of the move (ice sliding etc.)
-            let simPlayer = { r: playerPos.r, c: playerPos.c };
-            let simBlocks = visualBlocks.map(b => ({
+        // ------------------------------------------------
+        // NEW SIMULATION ENGINE
+        // ------------------------------------------------
+        function simulateMove(dr, dc, curPlayer, curBlocks) {
+            // Deep clone state
+            let simPlayer = { r: curPlayer.r, c: curPlayer.c };
+            let simBlocks = curBlocks.map(b => ({
                 id: b.id,
                 char: b.char,
                 isTrapped: b.isTrapped,
                 tiles: b.tiles.map(t => ({ x: t.targetX, y: t.targetY }))
             }));
 
-            function getSimBlockAt(r, c) {
+            const rows = activeGrid.length;
+            const cols = getMaxColumns(activeGrid);
+
+            function getBlockAt(r, c) {
                 return simBlocks.find(b => b.tiles.some(t => t.x === c && t.y === r));
             }
 
-            function canPushSimBlock(block, pdr, pdc) {
-                for (const tile of block.tiles) {
-                    const destR = tile.y + pdr;
-                    const destC = tile.x + pdc;
-
-                    if (destR < 0 || destR >= activeGrid.length || destC < 0 || destC >= getMaxColumns(activeGrid)) {
-                        return false;
-                    }
-
-                    const destOrig = originalGrid[destR]?.[destC];
-                    if (destOrig === '#') return false;
-
-                    if (isDigit(destOrig)) {
-                        if (!isYellowWallPassable(destR, destC)) return false;
-                    }
-
-                    if (destOrig >= 'a' && destOrig <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(destOrig)) {
-                        return false;
-                    }
-
-                    const otherB = getSimBlockAt(destR, destC);
-                    if (otherB && otherB.id !== block.id) return false;
-
-                    if (destR === simPlayer.r && destC === simPlayer.c) return false;
-                }
-                return true;
+            function blockOnIce(block) {
+                return block.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
             }
 
-            function isWalkableForSimPlayer(r, c) {
-                if (r < 0 || r >= activeGrid.length || c < 0 || c >= getMaxColumns(activeGrid)) return false;
+            function blockIsIceBox(block) { return isIceBox(block.char); }
+
+            function blockIsTransparent(block) { return isTransparentBox(block.char); }
+
+            function blockIsHeat(block) { return isHeatBox(block.char); }
+
+            function isWalkable(r, c, ignorePlayer = false) {
+                if (r < 0 || r >= rows || c < 0 || c >= (activeGrid[r] ? activeGrid[r].length : 0)) return false;
                 const orig = originalGrid[r]?.[c];
                 if (orig === '#') return false;
-                if (isDigit(orig)) {
-                    if (!isYellowWallPassable(r, c)) return false;
+                if (isDigit(orig)) return isYellowWallPassable(r, c);
+                if (!ignorePlayer && r === simPlayer.r && c === simPlayer.c) return false;
+                return true;
+            }
+
+            function canMoveSingleBlock(block, dirR, dirC) {
+                for (let tile of block.tiles) {
+                    let nr = tile.y + dirR;
+                    let nc = tile.x + dirC;
+                    if (!isWalkable(nr, nc, true)) return false;
+                    // Check for block collision
+                    const other = getBlockAt(nr, nc);
+                    if (other && other.id !== block.id) return false;
                 }
                 return true;
             }
 
-            let playerSliding = true;
-            let slidingBlockIds = new Set();
-            let actionCommitted = false;
+            function moveSingleBlock(block, dirR, dirC) {
+                block.tiles.forEach(t => { t.x += dirC;
+                    t.y += dirR; });
+            }
 
-            const MAX_SLIDE_STEPS = 100;
-            let step = 0;
-            let anyMovementThisStep = true;
+            // Transparent chain detection
+            function getTransparentChain(startBlockId, dirR, dirC) {
+                const chainIds = [startBlockId];
+                let toProcess = [startBlockId];
+                while (toProcess.length > 0) {
+                    let currentId = toProcess.shift();
+                    let current = simBlocks.find(b => b.id === currentId);
+                    let frontBlocks = new Set();
+                    for (let t of current.tiles) {
+                        let nr = t.y + dirR,
+                            nc = t.x + dirC;
+                        let b = getBlockAt(nr, nc);
+                        if (b && b.id !== current.id && blockIsTransparent(b) && !chainIds.includes(b.id)) {
+                            frontBlocks.add(b.id);
+                        }
+                    }
+                    for (let id of frontBlocks) {
+                        chainIds.push(id);
+                        toProcess.push(id);
+                    }
+                }
+                return chainIds;
+            }
 
-            while (anyMovementThisStep && step < MAX_SLIDE_STEPS) {
-                anyMovementThisStep = false;
-                step++;
+            function canMoveChain(chainIds, dirR, dirC) {
+                // Check all tiles of all blocks in chain for obstacles
+                for (let id of chainIds) {
+                    const block = simBlocks.find(b => b.id === id);
+                    for (let tile of block.tiles) {
+                        let nr = tile.y + dirR,
+                            nc = tile.x + dirC;
+                        if (!isWalkable(nr, nc, true)) return false;
+                        const other = getBlockAt(nr, nc);
+                        if (other && !chainIds.includes(other.id)) return false;
+                    }
+                }
+                return true;
+            }
 
+            function moveChain(chainIds, dirR, dirC) {
+                chainIds.forEach(id => {
+                    let block = simBlocks.find(b => b.id === id);
+                    moveSingleBlock(block, dirR, dirC);
+                });
+            }
+
+            // Initial push
+            let pr = simPlayer.r + dr;
+            let pc = simPlayer.c + dc;
+            if (!isWalkable(pr, pc)) return null;
+
+            let slidingGroups = []; // each: { ids: [blockId,...], dirR, dirC }
+
+            const blockInFront = getBlockAt(pr, pc);
+            if (blockInFront) {
+                if (blockIsTransparent(blockInFront)) {
+                    const chain = getTransparentChain(blockInFront.id, dr, dc);
+                    if (!canMoveChain(chain, dr, dc)) return null;
+                    moveChain(chain, dr, dc);
+                    simPlayer.r = pr;
+                    simPlayer.c = pc;
+                    // Determine if any in chain should slide (on ice or ice box)
+                    const anySlide = chain.some(id => {
+                        const b = simBlocks.find(bl => bl.id === id);
+                        return blockOnIce(b) || blockIsIceBox(b);
+                    });
+                    if (anySlide) {
+                        slidingGroups.push({ ids: chain, dirR: dr, dirC: dc });
+                    }
+                } else {
+                    // Non-transparent block (can be ice box or normal)
+                    if (!canMoveSingleBlock(blockInFront, dr, dc)) return null;
+                    moveSingleBlock(blockInFront, dr, dc);
+                    simPlayer.r = pr;
+                    simPlayer.c = pc;
+                    if (blockOnIce(blockInFront) || blockIsIceBox(blockInFront)) {
+                        slidingGroups.push({ ids: [blockInFront.id], dirR: dr, dirC: dc });
+                    }
+                }
+            } else {
+                simPlayer.r = pr;
+                simPlayer.c = pc;
+            }
+
+            // Now handle sliding (player and blocks)
+            let playerSliding = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
+            let maxSlideSteps = 200;
+            let steps = 0;
+            let anyMovement = true;
+
+            while ((playerSliding || slidingGroups.length > 0) && anyMovement && steps < maxSlideSteps) {
+                anyMovement = false;
+                steps++;
+
+                // Sort sliding groups: farthest first along direction
+                slidingGroups.sort((a, b) => {
+                    const aBlock = simBlocks.find(bl => bl.id === a.ids[0]);
+                    const bBlock = simBlocks.find(bl => bl.id === b.ids[0]);
+                    if (dr !== 0) {
+                        const aY = aBlock.tiles[0].y,
+                            bY = bBlock.tiles[0].y;
+                        return dr > 0 ? bY - aY : aY - bY;
+                    } else {
+                        const aX = aBlock.tiles[0].x,
+                            bX = bBlock.tiles[0].x;
+                        return dc > 0 ? bX - aX : aX - bX;
+                    }
+                });
+
+                let newSlidingGroups = [];
+                for (let group of slidingGroups) {
+                    const canMove = group.ids.length === 1 ? canMoveSingleBlock(simBlocks.find(b => b.id === group.ids[0]),
+                        group.dirR, group.dirC) : canMoveChain(group.ids, group.dirR, group.dirC);
+                    if (canMove) {
+                        if (group.ids.length === 1) moveSingleBlock(simBlocks.find(b => b.id === group.ids[0]), group.dirR,
+                            group.dirC);
+                        else moveChain(group.ids, group.dirR, group.dirC);
+                        anyMovement = true;
+                        // Check if still sliding (on ice or ice box)
+                        let stillSlides = group.ids.some(id => {
+                            const b = simBlocks.find(bl => bl.id === id);
+                            return blockOnIce(b) || blockIsIceBox(b);
+                        });
+                        if (stillSlides) newSlidingGroups.push(group);
+                    }
+                }
+                slidingGroups = newSlidingGroups;
+
+                // Player slide
                 if (playerSliding) {
-                    const pNextR = simPlayer.r + dr;
-                    const pNextC = simPlayer.c + dc;
-
-                    if (isWalkableForSimPlayer(pNextR, pNextC)) {
-                        const encounteredBlock = getSimBlockAt(pNextR, pNextC);
-                        if (encounteredBlock) {
-                            if (canPushSimBlock(encounteredBlock, dr, dc)) {
-                                actionCommitted = true;
-                                encounteredBlock.tiles.forEach(t => {
-                                    t.x += dc;
-                                    t.y += dr;
-                                });
-                                simPlayer.r = pNextR;
-                                simPlayer.c = pNextC;
-                                anyMovementThisStep = true;
-
-                                const blockOnIce = encounteredBlock.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
-                                if (blockOnIce) {
-                                    slidingBlockIds.add(encounteredBlock.id);
-                                } else {
-                                    slidingBlockIds.delete(encounteredBlock.id);
-                                }
-
-                                const playerOnIce = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
-                                if (!playerOnIce) {
-                                    playerSliding = false;
-                                }
+                    let pr2 = simPlayer.r + dr;
+                    let pc2 = simPlayer.c + dc;
+                    if (isWalkable(pr2, pc2)) {
+                        const blockThere = getBlockAt(pr2, pc2);
+                        if (blockThere) {
+                            if (blockIsTransparent(blockThere)) {
+                                const chain = getTransparentChain(blockThere.id, dr, dc);
+                                if (canMoveChain(chain, dr, dc)) {
+                                    moveChain(chain, dr, dc);
+                                    simPlayer.r = pr2;
+                                    simPlayer.c = pc2;
+                                    const anySlide = chain.some(id => {
+                                        const b = simBlocks.find(bl => bl.id === id);
+                                        return blockOnIce(b) || blockIsIceBox(b);
+                                    });
+                                    if (anySlide) slidingGroups.push({ ids: chain, dirR: dr, dirC: dc });
+                                    anyMovement = true;
+                                    if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
+                                } else playerSliding = false;
                             } else {
-                                playerSliding = false;
+                                if (canMoveSingleBlock(blockThere, dr, dc)) {
+                                    moveSingleBlock(blockThere, dr, dc);
+                                    simPlayer.r = pr2;
+                                    simPlayer.c = pc2;
+                                    if (blockOnIce(blockThere) || blockIsIceBox(blockThere)) {
+                                        slidingGroups.push({ ids: [blockThere.id], dirR: dr, dirC: dc });
+                                    }
+                                    anyMovement = true;
+                                    if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
+                                } else playerSliding = false;
                             }
                         } else {
-                            actionCommitted = true;
-                            simPlayer.r = pNextR;
-                            simPlayer.c = pNextC;
-                            anyMovementThisStep = true;
-
-                            const playerOnIce = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
-                            if (!playerOnIce) {
-                                playerSliding = false;
-                            }
+                            simPlayer.r = pr2;
+                            simPlayer.c = pc2;
+                            anyMovement = true;
+                            if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
                         }
                     } else {
                         playerSliding = false;
                     }
                 }
-
-                if (slidingBlockIds.size > 0) {
-                    const sortedBlockIds = Array.from(slidingBlockIds).sort((idA, idB) => {
-                        const bA = simBlocks.find(b => b.id === idA);
-                        const bB = simBlocks.find(b => b.id === idB);
-                        if (dr > 0) {
-                            const maxYA = Math.max(...bA.tiles.map(t => t.y));
-                            const maxYB = Math.max(...bB.tiles.map(t => t.y));
-                            return maxYB - maxYA;
-                        }
-                        if (dr < 0) {
-                            const minYA = Math.min(...bA.tiles.map(t => t.y));
-                            const minYB = Math.min(...bB.tiles.map(t => t.y));
-                            return minYA - minYB;
-                        }
-                        if (dc > 0) {
-                            const maxXA = Math.max(...bA.tiles.map(t => t.x));
-                            const maxXB = Math.max(...bB.tiles.map(t => t.x));
-                            return maxXB - maxXA;
-                        }
-                        if (dc < 0) {
-                            const minXA = Math.min(...bA.tiles.map(t => t.x));
-                            const minXB = Math.min(...bB.tiles.map(t => t.x));
-                            return minXA - minXB;
-                        }
-                        return 0;
-                    });
-
-                    for (const bId of sortedBlockIds) {
-                        const block = simBlocks.find(b => b.id === bId);
-                        if (canPushSimBlock(block, dr, dc)) {
-                            actionCommitted = true;
-                            block.tiles.forEach(t => {
-                                t.x += dc;
-                                t.y += dr;
-                            });
-                            anyMovementThisStep = true;
-
-                            const blockOnIce = block.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
-                            if (!blockOnIce) {
-                                slidingBlockIds.delete(bId);
-                            }
-                        } else {
-                            slidingBlockIds.delete(bId);
-                        }
-                    }
-                }
             }
 
-            // After simulation, compute new remaining moves if action committed
-            let movesDepleted = false;
-            let newRemainingMoves = remainingMoves; // default
+            return { player: simPlayer, blocks: simBlocks };
+        }
 
-            if (actionCommitted) {
-                // Check if we landed on a move tile
-                const finalCell = originalGrid[simPlayer.r]?.[simPlayer.c];
-                if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
-                    const limit = MOVE_TILE_LIMITS[finalCell];
-                    newRemainingMoves = (limit === 0) ? Infinity : limit;
-                } else {
-                    // Normal move: decrement if not infinite
-                    if (remainingMoves !== Infinity) {
-                        newRemainingMoves = remainingMoves - 1;
-                        if (newRemainingMoves === 0) {
-                            movesDepleted = true;
-                        }
-                    } else {
-                        newRemainingMoves = remainingMoves; // stays Infinity
-                    }
-                }
+        function movePlayer(dir) {
+            if (isLevelFailed || isLevelSolved) return;
+            let dr = 0,
+                dc = 0;
+            if (dir === 'up') { dr = -1;
+                visualPlayer.facing = 'up'; } else if (dir === 'down') { dr = 1;
+                visualPlayer.facing = 'down'; } else if (dir === 'left') { dc = -1;
+                visualPlayer.facing = 'left'; } else if (dir === 'right') { dc = 1;
+                visualPlayer.facing = 'right'; }
 
-                // Save history **before** modifying remainingMoves
-                saveStateToHistory();
+            const simResult = simulateMove(dr, dc, playerPos, visualBlocks);
+            if (!simResult) return;
 
-                // Now update remainingMoves
-                remainingMoves = newRemainingMoves;
-                updateMovesDisplay();
+            // Save state before applying
+            saveStateToHistory();
 
-                // Commit the move (update grid, blocks, player)
-                // Clear out active grid variables
-                for (let r = 0; r < activeGrid.length; r++) {
-                    for (let c = 0; c < activeGrid[r].length; c++) {
-                        activeGrid[r][c] = getBaselineCell(r, c);
-                    }
-                }
+            // Apply
+            playerPos = simResult.player;
+            visualPlayer.targetX = playerPos.c;
+            visualPlayer.targetY = playerPos.r;
 
-                // Write block updates
-                simBlocks.forEach(sb => {
-                    const blockRef = visualBlocks.find(b => b.id === sb.id);
-                    sb.tiles.forEach((tile, idx) => {
-                        const cellOrig = originalGrid[tile.y]?.[tile.x];
-                        const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
-                        activeGrid[tile.y][tile.x] = isGoal ? '*' : sb.char;
-
-                        blockRef.tiles[idx].targetX = tile.x;
-                        blockRef.tiles[idx].targetY = tile.y;
-                    });
+            visualBlocks.forEach((realBlock, idx) => {
+                const simB = simResult.blocks.find(sb => sb.id === realBlock.id);
+                if (!simB) return;
+                simB.tiles.forEach((tile, i) => {
+                    realBlock.tiles[i].targetX = tile.x;
+                    realBlock.tiles[i].targetY = tile.y;
                 });
+            });
 
-                // Write player updates
-                playerPos = { r: simPlayer.r, c: simPlayer.c };
-                visualPlayer.targetX = playerPos.c;
-                visualPlayer.targetY = playerPos.r;
-                activeGrid[playerPos.r][playerPos.c] = originalGrid[playerPos.r][playerPos.c] === '.' ? '+' : '@';
+            // Rebuild activeGrid for rendering
+            for (let r = 0; r < activeGrid.length; r++)
+                for (let c = 0; c < activeGrid[r].length; c++)
+                    activeGrid[r][c] = getBaselineCell(r, c);
+            visualBlocks.forEach(block => {
+                block.tiles.forEach(tile => {
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                    activeGrid[tile.targetY][tile.targetX] = isGoal ? '*' : block.char;
+                });
+            });
+            activeGrid[playerPos.r][playerPos.c] = originalGrid[playerPos.r][playerPos.c] === '.' ? '+' : '@';
 
-                if (step > 1) {
-                    playSfx('push');
-                } else {
-                    playSfx('step');
-                }
-
-                // Check rules (victory, traps, etc.)
-                checkRules();
-
-                // If we ran out of moves and didn't win, trigger failure
-                if (movesDepleted && !isLevelSolved) {
-                    triggerFailureState();
+            // Move limits
+            const finalCell = originalGrid[simResult.player.r]?.[simResult.player.c];
+            if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
+                const limit = MOVE_TILE_LIMITS[finalCell];
+                remainingMoves = (limit === 0) ? Infinity : limit;
+            } else if (remainingMoves !== Infinity) {
+                remainingMoves--;
+                if (remainingMoves <= 0) {
+                    updateMovesDisplay();
+                    checkRules();
+                    return;
                 }
             }
-            // If actionCommitted is false, we do nothing (illegal move) – no history saved, no move count change.
+            updateMovesDisplay();
+
+            checkRules();
         }
 
         function updateMovesDisplay() {
@@ -2349,60 +2767,83 @@
             }
         }
 
+        function checkHeatBoxContact() {
+            for (let block of visualBlocks) {
+                if (!isHeatBox(block.char)) continue;
+                for (let tile of block.tiles) {
+                    const tx = tile.targetX,
+                        ty = tile.targetY;
+                    const neighbours = [
+                        [ty - 1, tx],
+                        [ty + 1, tx],
+                        [ty, tx - 1],
+                        [ty, tx + 1]
+                    ];
+                    for (let [nr, nc] of neighbours) {
+                        if (nr < 0 || nr >= activeGrid.length || nc < 0 || nc >= activeGrid[nr].length) continue;
+                        const other = visualBlocks.find(b => b !== block && b.tiles.some(t => t.targetX === nc && t
+                        .targetY === nr));
+                        if (other) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         function checkRules() {
-            const satisfied = getSatisfiedCount();
+            // Trap check
 
             let trapTriggered = false;
             visualBlocks.forEach(block => {
                 let blockTrapped = false;
                 block.tiles.forEach(tile => {
-                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
-                    if (cellOrig === 'x') {
-                        blockTrapped = true;
-                        trapTriggered = true;
-                    }
+                    if (originalGrid[tile.targetY]?.[tile.targetX] === 'x') blockTrapped = true;
                 });
                 block.isTrapped = blockTrapped;
+                if (blockTrapped) trapTriggered = true;
             });
-
             if (trapTriggered) {
                 triggerFailureState();
                 return;
             }
 
+            // Player on yellow wall
             const playerOrigCell = originalGrid[playerPos.r][playerPos.c];
             if (isDigit(playerOrigCell)) {
                 const req = parseInt(playerOrigCell, 10);
-                if (satisfied !== req) {
+                if (getSatisfiedCount() !== req) {
                     triggerFailureState();
                     return;
                 }
             }
 
+            // Box on yellow wall
             let boxTrappedInWall = false;
             visualBlocks.forEach(block => {
-                let blockTrappedInWall = false;
                 block.tiles.forEach(tile => {
-                    const boxOrigCell = originalGrid[tile.targetY]?.[tile.targetX];
-                    if (isDigit(boxOrigCell)) {
-                        const req = parseInt(boxOrigCell, 10);
-                        if (satisfied !== req) {
-                            blockTrappedInWall = true;
-                            boxTrappedInWall = true;
-                        }
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    if (isDigit(cellOrig) && getSatisfiedCount() !== parseInt(cellOrig, 10)) {
+                        block.isTrapped = true;
+                        boxTrappedInWall = true;
                     }
                 });
-                if (blockTrappedInWall) {
-                    block.isTrapped = true;
-                }
             });
-
             if (boxTrappedInWall) {
                 triggerFailureState();
                 return;
             }
 
+            // Heat box contact
+            if (checkHeatBoxContact()) {
+                triggerFailureState();
+                return;
+            }
+
             checkVictory();
+            if (remainingMoves <= 0 && levelHasMoveTiles) {
+                triggerFailureState();
+                return;
+            }
         }
 
         function getBaselineCell(r, c) {
@@ -2424,9 +2865,7 @@
                 })),
                 remainingMoves: remainingMoves
             });
-            if (historyStack.length > 250) {
-                historyStack.shift();
-            }
+            if (historyStack.length > 250) historyStack.shift();
         }
 
         function undoMove() {
@@ -2450,7 +2889,6 @@
             if (gameState !== "level" || isLevelSolved) return;
             saveStateToHistory();
             loadLevel(activeLevelIndex, true);
-            // Ensure remaining moves reset to Infinity (fresh start)
             remainingMoves = Infinity;
             updateMovesDisplay();
         }
@@ -2467,9 +2905,7 @@
             for (let r = 0; r < originalGrid.length; r++) {
                 for (let c = 0; c < originalGrid[r].length; c++) {
                     const cell = originalGrid[r][c];
-                    if (cell === '.' || cell === '*' || cell === '+') {
-                        totalGoals++;
-                    }
+                    if (cell === '.' || cell === '*' || cell === '+') totalGoals++;
                 }
             }
 
@@ -2482,9 +2918,11 @@
                 isLevelSolved = true;
                 playSfx('win');
 
-                completedLevels.add(activeLevelIndex);
-                localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
-                buildLevelsSidebar();
+                if (!LEVELS[activeLevelIndex].special) {
+                    completedLevels.add(activeLevelIndex);
+                    localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
+                    buildLevelsSidebar();
+                }
 
                 setTimeout(() => {
                     exitToOverworld();
@@ -2494,7 +2932,6 @@
 
         function exitToOverworld() {
             const dir = levelEntryState.entryDirection;
-            
             lastExitedLevelIndex = activeLevelIndex;
             lastExitTime = Date.now();
 
@@ -2504,7 +2941,6 @@
                 visualOverworldPlayer.y = overworldPlayerPos.r;
                 visualOverworldPlayer.targetX = overworldPlayerPos.c;
                 visualOverworldPlayer.targetY = overworldPlayerPos.r;
-
                 loadOverworld();
                 buildLevelsSidebar();
             });
@@ -2520,7 +2956,6 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar-menu');
             const backdrop = document.getElementById('sidebar-backdrop');
-            
             if (sidebar.classList.contains('-translate-x-full')) {
                 sidebar.classList.remove('-translate-x-full');
                 backdrop.classList.remove('hidden');
@@ -2537,6 +2972,10 @@
             cancelClearData();
         }
 
+        function getNormalLevels() {
+            return LEVELS.filter(lvl => !lvl.special);
+        }
+
         function buildLevelsSidebar() {
             const container = document.getElementById('sidebar-level-list');
             container.innerHTML = '';
@@ -2545,24 +2984,27 @@
                 const row = document.createElement('button');
                 const isCompleted = completedLevels.has(idx);
                 const isAttempted = attemptedLevels.has(idx) && !isCompleted;
-                
-                const isLevelAccessible = (ENTRANCE_MODE === 0) || (idx === 0) || attemptedLevels.has(idx) || completedLevels.has(idx);
+                const isLevelAccessible = (ENTRANCE_MODE === 0) || (idx === 0) || attemptedLevels.has(idx) ||
+                    completedLevels.has(idx);
 
                 let bgColor = "bg-white text-black";
                 if (isCompleted) {
-                    bgColor = idx % 2 === 0 ? "bg-green-100 hover:bg-green-200 text-black" : "bg-green-200 hover:bg-green-300 text-black";
+                    bgColor = idx % 2 === 0 ? "bg-green-100 hover:bg-green-200 text-black" :
+                        "bg-green-200 hover:bg-green-300 text-black";
                 } else if (isAttempted) {
-                    bgColor = idx % 2 === 0 ? "bg-yellow-100 hover:bg-yellow-200 text-black" : "bg-yellow-200 hover:bg-yellow-300 text-black";
+                    bgColor = idx % 2 === 0 ? "bg-yellow-100 hover:bg-yellow-200 text-black" :
+                        "bg-yellow-200 hover:bg-yellow-300 text-black";
                 } else {
-                    bgColor = idx % 2 === 0 ? "bg-white hover:bg-neutral-100 text-black" : "bg-neutral-100 hover:bg-neutral-200 text-black";
+                    bgColor = idx % 2 === 0 ? "bg-white hover:bg-neutral-100 text-black" :
+                        "bg-neutral-100 hover:bg-neutral-200 text-black";
                 }
-
                 if (gameState === "level" && idx === activeLevelIndex) {
                     bgColor = "bg-black hover:bg-neutral-800 text-white";
                 }
 
-                row.className = `w-full text-left px-6 py-5 font-bold text-xs border-b border-black transition-colors duration-150 rounded-none flex items-center justify-between ${bgColor}`;
-                
+                row.className =
+                    `w-full text-left px-6 py-5 font-bold text-xs border-b border-black transition-colors duration-150 rounded-none flex items-center justify-between ${bgColor}`;
+
                 if (isLevelAccessible) {
                     row.onclick = () => {
                         hideSidebar();
@@ -2577,13 +3019,15 @@
                     row.onclick = null;
                 }
 
+                let label = `${idx+1}. ${level.name}`;
+                if (level.special) label += ' ★ SPECIAL';
                 row.innerHTML = `
-                    <div class="flex items-center space-x-2">
-                        <span class="tracking-widest uppercase">${idx + 1}. ${level.name}</span>
-                        ${!isLevelAccessible ? '<span class="material-symbols-outlined text-[13px] text-neutral-400 select-none">lock</span>' : ''}
-                    </div>
-                    <span class="font-extrabold text-[10px] opacity-65">${level.grid.length}x${getMaxColumns(level.grid)}</span>
-                `;
+                        <div class="flex items-center space-x-2">
+                            <span class="tracking-widest uppercase">${label}</span>
+                            ${!isLevelAccessible ? '<span class="material-symbols-outlined text-[13px] text-neutral-400 select-none">lock</span>' : ''}
+                        </div>
+                        <span class="font-extrabold text-[10px] opacity-65">${level.grid.length}x${getMaxColumns(level.grid)}</span>
+                    `;
                 container.appendChild(row);
             });
         }
@@ -2600,58 +3044,45 @@
             if (gameState === "overworld") {
                 visualOverworldPlayer.x += (visualOverworldPlayer.targetX - visualOverworldPlayer.x) * lerpSpeed;
                 visualOverworldPlayer.y += (visualOverworldPlayer.targetY - visualOverworldPlayer.y) * lerpSpeed;
-
                 const camLerpSpeed = 0.1;
                 overworldCamera.x += (visualOverworldPlayer.x - overworldCamera.x) * camLerpSpeed;
                 overworldCamera.y += (visualOverworldPlayer.y - overworldCamera.y) * camLerpSpeed;
-
                 const zoomLerpSpeed = 0.1;
                 overworldZoom += (targetOverworldZoom - overworldZoom) * zoomLerpSpeed;
-
                 visualOverworldPlayer.blinkTimer--;
                 if (visualOverworldPlayer.blinkTimer <= 0) {
                     visualOverworldPlayer.blinkState = !visualOverworldPlayer.blinkState;
                     visualOverworldPlayer.blinkTimer = visualOverworldPlayer.blinkState ? 10 : (120 + Math.random() * 200);
                 }
-
                 const cartesianX = Math.round(visualOverworldPlayer.x);
                 const cartesianY = overworldGrid.length - 1 - Math.round(visualOverworldPlayer.y);
                 document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
             } else {
                 let pDx = visualPlayer.targetX - visualPlayer.x;
                 let pDy = visualPlayer.targetY - visualPlayer.y;
-
                 let pStepX = pDx * LERP_SPEED;
                 let pStepY = pDy * LERP_SPEED;
-
                 if (Math.abs(pStepX) > MAX_ANIMATION_SPEED) pStepX = Math.sign(pStepX) * MAX_ANIMATION_SPEED;
                 if (Math.abs(pStepY) > MAX_ANIMATION_SPEED) pStepY = Math.sign(pStepY) * MAX_ANIMATION_SPEED;
-
                 visualPlayer.x += pStepX;
                 visualPlayer.y += pStepY;
-
                 visualPlayer.blinkTimer--;
                 if (visualPlayer.blinkTimer <= 0) {
                     visualPlayer.blinkState = !visualPlayer.blinkState;
                     visualPlayer.blinkTimer = visualPlayer.blinkState ? 10 : (120 + Math.random() * 200);
                 }
-
                 visualBlocks.forEach(block => {
                     block.tiles.forEach(tile => {
                         let bDx = tile.targetX - tile.x;
                         let bDy = tile.targetY - tile.y;
-
                         let bStepX = bDx * LERP_SPEED;
                         let bStepY = bDy * LERP_SPEED;
-
                         if (Math.abs(bStepX) > MAX_ANIMATION_SPEED) bStepX = Math.sign(bStepX) * MAX_ANIMATION_SPEED;
                         if (Math.abs(bStepY) > MAX_ANIMATION_SPEED) bStepY = Math.sign(bStepY) * MAX_ANIMATION_SPEED;
-
                         tile.x += bStepX;
                         tile.y += bStepY;
                     });
                 });
-
                 const cartesianX = Math.round(visualPlayer.x);
                 const cartesianY = activeGrid.length - 1 - Math.round(visualPlayer.y);
                 document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
@@ -2662,26 +3093,19 @@
                 p.x += p.vx;
                 p.y += p.vy;
                 p.alpha -= p.decay;
-                if (p.alpha <= 0) {
-                    particles.splice(i, 1);
-                }
+                if (p.alpha <= 0) particles.splice(i, 1);
             }
         }
 
         function drawCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (gameState === "overworld") {
-                drawOverworldMap();
-            } else {
-                drawLevelMap();
-            }
+            if (gameState === "overworld") drawOverworldMap();
+            else drawLevelMap();
         }
 
         function drawOverworldMap() {
             const gridRows = overworldGrid.length;
             const gridCols = getMaxColumns(overworldGrid);
-
             const viewCols = 13;
             const tileSize = (canvas.width / viewCols) * overworldZoom;
 
@@ -2694,131 +3118,101 @@
             }
 
             ctx.save();
-            
             ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.translate(
-                -overworldCamera.x * tileSize - tileSize / 2, 
-                -overworldCamera.y * tileSize - tileSize / 2
-            );
+            ctx.translate(-overworldCamera.x * tileSize - tileSize / 2, -overworldCamera.y * tileSize - tileSize / 2);
 
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
+                    const x = c * tileSize,
+                        y = r * tileSize;
                     const type = getOverworldCellType(r, c);
-
-                    if (type === 'VOID') {
-                        ctx.fillStyle = '#dcdcdc';
-                    } else if (type === 'LOCK') {
-                        ctx.fillStyle = '#f3f4f6'; 
-                    } else {
-                        ctx.fillStyle = '#ffffff';
-                    }
+                    if (type === 'VOID') ctx.fillStyle = '#dcdcdc';
+                    else if (type === 'LOCK') ctx.fillStyle = '#f3f4f6';
+                    else ctx.fillStyle = '#ffffff';
                     ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
                 }
             }
 
+            // Draw internal grid lines
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
+                    const x = c * tileSize,
+                        y = r * tileSize;
                     const type = getOverworldCellType(r, c);
-
                     if (type === 'FLOOR') {
                         ctx.strokeStyle = '#f0f0f0';
                         ctx.lineWidth = 1;
-
-                        if (getOverworldCellType(r, c - 1) === 'FLOOR') {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
-                        }
-                        if (getOverworldCellType(r - 1, c) === 'FLOOR') {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
-                        }
+                        if (getOverworldCellType(r, c - 1) === 'FLOOR') { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x, y + tileSize);
+                            ctx.stroke(); }
+                        if (getOverworldCellType(r - 1, c) === 'FLOOR') { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x + tileSize, y);
+                            ctx.stroke(); }
                     }
                 }
             }
 
+            // Draw outer border
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
-                    const type = getOverworldCellType(r, c);
-
-                    if (type !== 'VOID') {
+                    const x = c * tileSize,
+                        y = r * tileSize;
+                    const myType = getOverworldCellType(r, c);
+                    if (myType !== 'VOID') {
                         ctx.strokeStyle = '#000000';
                         ctx.lineWidth = 2.5;
-
-                        if (getOverworldCellType(r - 1, c) !== type) {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
-                        }
-                        if (getOverworldCellType(r + 1, c) !== type) {
-                            ctx.beginPath(); ctx.moveTo(x, y + tileSize); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
-                        }
-                        if (getOverworldCellType(r, c - 1) !== type) {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
-                        }
-                        if (getOverworldCellType(r, c + 1) !== type) {
-                            ctx.beginPath(); ctx.moveTo(x + tileSize, y); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
-                        }
+                        if (getOverworldCellType(r - 1, c) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x + tileSize, y);
+                            ctx.stroke(); }
+                        if (getOverworldCellType(r + 1, c) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x, y + tileSize);
+                            ctx.lineTo(x + tileSize, y + tileSize);
+                            ctx.stroke(); }
+                        if (getOverworldCellType(r, c - 1) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x, y + tileSize);
+                            ctx.stroke(); }
+                        if (getOverworldCellType(r, c + 1) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x + tileSize, y);
+                            ctx.lineTo(x + tileSize, y + tileSize);
+                            ctx.stroke(); }
                     }
                 }
             }
 
+            // Nodes
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
-                    const cell = overworldGrid[r][c];
-
-                    if (cell === '-' || cell === '|') {
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        if (cell === '-') {
-                            ctx.moveTo(x, y + tileSize / 2);
-                            ctx.lineTo(x + tileSize, y + tileSize / 2);
-                        } else {
-                            ctx.moveTo(x + tileSize / 2, y);
-                            ctx.lineTo(x + tileSize / 2, y + tileSize);
-                        }
-                        ctx.stroke();
-                    }
-                }
-            }
-
-            for (let r = 0; r < gridRows; r++) {
-                for (let c = 0; c < gridCols; c++) {
-                    const cartX = c;
-                    const cartY = gridRows - 1 - r;
+                    const cartX = c,
+                        cartY = gridRows - 1 - r;
                     const coordKey = `${cartX},${cartY}`;
                     const node = OVERWORLD.nodes[coordKey];
                     const cell = overworldGrid[r][c];
-                    const x = c * tileSize;
-                    const y = r * tileSize;
+                    const x = c * tileSize,
+                        y = r * tileSize;
 
                     if (node && node.type === 'level') {
                         const isCompleted = completedLevels.has(node.index);
-                        
-                        ctx.fillStyle = isCompleted ? '#22c55e' : '#ffffff';
+                        const isSpecial = LEVELS[node.index] && LEVELS[node.index].special;
+                        ctx.fillStyle = isCompleted ? '#22c55e' : (isSpecial ? '#c084fc' : '#ffffff');
                         ctx.strokeStyle = '#000000';
                         ctx.lineWidth = 1.5;
-
-                        const padding = tileSize * 0.15;
-                        const size = tileSize - padding * 2;
+                        const padding = tileSize * 0.15,
+                            size = tileSize - padding * 2;
                         ctx.fillRect(x + padding, y + padding, size, size);
                         ctx.strokeRect(x + padding, y + padding, size, size);
-
                         ctx.fillStyle = isCompleted ? '#ffffff' : '#000000';
                         ctx.font = `bold ${tileSize * 0.3}px 'Inter', sans-serif`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(node.label, x + tileSize / 2, y + tileSize / 2);
-
                     } else if (node && node.type === 'info') {
                         const radius = tileSize * 0.35;
-                        const cx = x + tileSize / 2;
-                        const cy = y + tileSize / 2;
-
+                        const cx = x + tileSize / 2,
+                            cy = y + tileSize / 2;
                         ctx.fillStyle = '#ffffff';
                         ctx.strokeStyle = '#000000';
                         ctx.lineWidth = 1.5;
@@ -2826,66 +3220,54 @@
                         ctx.arc(cx, cy, radius, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.stroke();
-
                         ctx.fillStyle = '#000000';
                         ctx.font = `bold ${tileSize * 0.35}px 'Inter', sans-serif`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText("i", cx, cy);
-
                     } else if (cell === 'L') {
-                        const cluster = lockComponents.find(comp => comp.cells.some(cellPos => cellPos.r === r && cellPos.c === c));
+                        const cluster = lockComponents.find(comp => comp.cells.some(cellPos => cellPos.r === r && cellPos
+                            .c === c));
                         if (cluster) {
                             const required = cluster.node ? cluster.node.required : 0;
-                            const completedCount = completedLevels.size;
-                            const isUnlocked = completedCount >= required;
-
+                            const completedNormal = getCompletedNormalCount();
+                            const isUnlocked = completedNormal >= required;
                             ctx.fillStyle = isUnlocked ? 'rgba(34, 197, 94, 0.4)' : '#facc15';
                             ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
-
-                            if (cluster.centerCell && cluster.centerCell.r === r && cluster.centerCell.c === c && required > 0) {
+                            if (cluster.centerCell && cluster.centerCell.r === r && cluster.centerCell.c === c &&
+                                required > 0) {
                                 ctx.fillStyle = '#000000';
                                 ctx.font = `bold ${tileSize * 0.28}px 'Inter', sans-serif`;
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                ctx.fillText(`${completedCount}/${required}`, x + tileSize / 2, y + tileSize / 2);
+                                ctx.fillText(`${completedNormal}/${required}`, x + tileSize / 2, y + tileSize / 2);
                             }
                         }
                     }
                 }
             }
 
-            const opX = visualOverworldPlayer.x * tileSize;
-            const opY = visualOverworldPlayer.y * tileSize;
-            const opMargin = tileSize * 0.14;
-            const opSize = tileSize - opMargin * 2;
-
+            // Player
+            const opX = visualOverworldPlayer.x * tileSize,
+                opY = visualOverworldPlayer.y * tileSize;
+            const opMargin = tileSize * 0.14,
+                opSize = tileSize - opMargin * 2;
             ctx.fillStyle = playerCustomBody;
             ctx.fillRect(opX + opMargin, opY + opMargin, opSize, opSize);
-
             if (!visualOverworldPlayer.blinkState) {
-                const eyeW = opSize * 0.16;
-                const eyeH = opSize * 0.16;
-                
+                const eyeW = opSize * 0.16,
+                    eyeH = opSize * 0.16;
                 let eyeYOffset = opY + opMargin + (opSize * 0.28);
                 let leftEyeX = opX + opMargin + (opSize * 0.22);
                 let rightEyeX = opX + opMargin + (opSize * 0.62);
-
-                if (visualOverworldPlayer.facing === 'left') {
-                    leftEyeX -= 3; rightEyeX -= 3;
-                } else if (visualOverworldPlayer.facing === 'right') {
-                    leftEyeX += 3; rightEyeX += 3;
-                } else if (visualOverworldPlayer.facing === 'up') {
-                    eyeYOffset -= 3;
-                } else if (visualOverworldPlayer.facing === 'down') {
-                    eyeYOffset += 3;
-                }
-
+                if (visualOverworldPlayer.facing === 'left') { leftEyeX -= 3;
+                    rightEyeX -= 3; } else if (visualOverworldPlayer.facing === 'right') { leftEyeX += 3;
+                    rightEyeX += 3; } else if (visualOverworldPlayer.facing === 'up') eyeYOffset -= 3;
+                else if (visualOverworldPlayer.facing === 'down') eyeYOffset += 3;
                 ctx.fillStyle = playerCustomEye;
                 ctx.fillRect(leftEyeX, eyeYOffset, eyeW, eyeH);
                 ctx.fillRect(rightEyeX, eyeYOffset, eyeW, eyeH);
             }
-
             ctx.restore();
         }
 
@@ -2904,93 +3286,83 @@
 
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
-
+                    const x = c * tileSize,
+                        y = r * tileSize;
                     const type = getCellType(r, c);
-                    if (type === 'VOID') {
-                        ctx.fillStyle = '#dcdcdc';
-                        ctx.fillRect(x, y, tileSize, tileSize);
-                    } else if (type.startsWith('YELLOW_')) {
+                    if (type === 'VOID') ctx.fillStyle = '#dcdcdc';
+                    else if (type.startsWith('YELLOW_')) {
                         const cellOrig = originalGrid[r][c];
                         const req = parseInt(cellOrig, 10);
-                        const currentSatisfied = getSatisfiedCount();
-                        const isPassable = currentSatisfied === req;
-
+                        const isPassable = getSatisfiedCount() === req;
                         ctx.fillStyle = isPassable ? '#facc15' : '#b45309';
-                        ctx.fillRect(x - 0.5, y - 0.5, tileSize + 1, tileSize + 1);
                     } else {
                         const cellOrig = originalGrid[r][c] || ' ';
-                        if (cellOrig === 'I') {
-                            ctx.fillStyle = '#bae6fd';
-                        } else {
-                            ctx.fillStyle = '#ffffff';
-                        }
-                        ctx.fillRect(x, y, tileSize, tileSize);
+                        ctx.fillStyle = cellOrig === 'I' ? '#bae6fd' : '#ffffff';
                     }
+                    ctx.fillRect(x, y, tileSize, tileSize);
                 }
             }
 
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
-
+                    const x = c * tileSize,
+                        y = r * tileSize;
                     if (getCellType(r, c) === 'FLOOR') {
                         ctx.strokeStyle = '#f0f0f0';
                         ctx.lineWidth = 1;
-
-                        if (getCellType(r, c - 1) === 'FLOOR') {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
-                        }
-                        if (getCellType(r - 1, c) === 'FLOOR') {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
-                        }
+                        if (getCellType(r, c - 1) === 'FLOOR') { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x, y + tileSize);
+                            ctx.stroke(); }
+                        if (getCellType(r - 1, c) === 'FLOOR') { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x + tileSize, y);
+                            ctx.stroke(); }
                     }
                 }
             }
 
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
-
+                    const x = c * tileSize,
+                        y = r * tileSize;
                     const myType = getCellType(r, c);
                     if (myType !== 'VOID') {
                         ctx.strokeStyle = '#000000';
                         ctx.lineWidth = 2.5;
-
-                        if (getCellType(r - 1, c) !== myType) {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tileSize, y); ctx.stroke();
-                        }
-                        if (getCellType(r + 1, c) !== myType) {
-                            ctx.beginPath(); ctx.moveTo(x, y + tileSize); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
-                        }
-                        if (getCellType(r, c - 1) !== myType) {
-                            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + tileSize); ctx.stroke();
-                        }
-                        if (getCellType(r, c + 1) !== myType) {
-                            ctx.beginPath(); ctx.moveTo(x + tileSize, y); ctx.lineTo(x + tileSize, y + tileSize); ctx.stroke();
-                        }
+                        if (getCellType(r - 1, c) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x + tileSize, y);
+                            ctx.stroke(); }
+                        if (getCellType(r + 1, c) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x, y + tileSize);
+                            ctx.lineTo(x + tileSize, y + tileSize);
+                            ctx.stroke(); }
+                        if (getCellType(r, c - 1) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(x, y + tileSize);
+                            ctx.stroke(); }
+                        if (getCellType(r, c + 1) !== myType) { ctx.beginPath();
+                            ctx.moveTo(x + tileSize, y);
+                            ctx.lineTo(x + tileSize, y + tileSize);
+                            ctx.stroke(); }
                     }
                 }
             }
 
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
-                    const x = c * tileSize;
-                    const y = r * tileSize;
-
+                    const x = c * tileSize,
+                        y = r * tileSize;
                     const myType = getCellType(r, c);
                     if (myType === 'FLOOR') {
                         const cellOrig = originalGrid[r][c] || ' ';
                         const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
                         const isTrap = cellOrig === 'x';
                         const isIce = cellOrig === 'I';
-
                         if (cellOrig >= 'a' && cellOrig <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(cellOrig)) {
-                            const cx = x + tileSize / 2;
-                            const cy = y + tileSize / 2;
+                            const cx = x + tileSize / 2,
+                                cy = y + tileSize / 2;
                             const radius = tileSize * 0.3;
                             ctx.beginPath();
                             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -2999,18 +3371,15 @@
                             ctx.strokeStyle = '#000000';
                             ctx.lineWidth = 1.5;
                             ctx.stroke();
-
                             const limit = MOVE_TILE_LIMITS[cellOrig];
-                            const label = (limit === 0) ? '∞' : limit;
                             ctx.fillStyle = '#000000';
-                            ctx.font = `bold ${tileSize * 0.28}px 'Inter', sans-serif`;
+                            ctx.font = `bold ${tileSize*0.28}px 'Inter', sans-serif`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText(label, cx, cy);
+                            ctx.fillText((limit === 0) ? '∞' : limit, cx, cy);
                         }
-
                         if (isIce) {
-                            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+                            ctx.strokeStyle = 'rgba(255,255,255,0.65)';
                             ctx.lineWidth = 1.5;
                             ctx.beginPath();
                             ctx.moveTo(x + tileSize * 0.2, y + tileSize * 0.2);
@@ -3019,7 +3388,6 @@
                             ctx.lineTo(x + tileSize * 0.8, y + tileSize * 0.8);
                             ctx.stroke();
                         }
-
                         if (isGoal) {
                             const gSize = tileSize * 0.22;
                             ctx.fillStyle = '#22c55e';
@@ -3029,164 +3397,172 @@
                             ctx.lineWidth = 2;
                             const margin = tileSize * 0.35;
                             ctx.strokeRect(x + margin, y + margin, tileSize - margin * 2, tileSize - margin * 2);
-                            ctx.beginPath();
-                            ctx.moveTo(x + tileSize/2, y + margin - 4); ctx.lineTo(x + tileSize/2, y + margin);
-                            ctx.moveTo(x + tileSize/2, y + tileSize - margin); ctx.lineTo(x + tileSize/2, y + tileSize - margin + 4);
-                            ctx.moveTo(x + margin - 4, y + tileSize/2); ctx.lineTo(x + margin, y + tileSize/2);
-                            ctx.moveTo(x + tileSize - margin, y + tileSize/2); ctx.lineTo(x + tileSize - margin + 4, y + tileSize/2);
-                            ctx.stroke();
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(x + margin * 0.6, y + margin * 0.6, tileSize - margin * 1.2, tileSize - margin *
+                                1.2);
                         }
                     } else if (myType.startsWith('YELLOW_')) {
                         const cellOrig = originalGrid[r][c];
                         const req = parseInt(cellOrig, 10);
-                        const currentSatisfied = getSatisfiedCount();
-                        const isPassable = currentSatisfied === req;
-
-                        const myComp = yellowWallComponents.find(comp => comp.cells.some(cell => cell.r === r && cell.c === c));
+                        const isPassable = getSatisfiedCount() === req;
+                        const myComp = yellowWallComponents.find(comp => comp.cells.some(cell => cell.r === r && cell.c ===
+                            c));
                         if (myComp && myComp.centerCell.r === r && myComp.centerCell.c === c) {
                             ctx.fillStyle = isPassable ? '#000000' : '#ffffff';
-                            ctx.font = `900 ${tileSize * 0.38}px 'Inter', sans-serif`;
+                            ctx.font = `900 ${tileSize*0.38}px 'Inter', sans-serif`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText(cellOrig, x + tileSize/2, y + tileSize/2);
+                            ctx.fillText(cellOrig, x + tileSize / 2, y + tileSize / 2);
                         }
                     }
                 }
             }
 
+            // Draw blocks
             visualBlocks.forEach(block => {
                 const margin = tileSize * 0.08;
                 const innerMargin = Math.max(2.5, tileSize * 0.06);
-
                 const hasTile = (tx, ty) => block.tiles.some(t => t.targetX === tx && t.targetY === ty);
 
+                // First pass: fill tiles
                 block.tiles.forEach(tile => {
-                    const tx = tile.targetX;
-                    const ty = tile.targetY;
-
-                    const T = hasTile(tx, ty - 1);
-                    const B = hasTile(tx, ty + 1);
-                    const L = hasTile(tx - 1, ty);
-                    const R = hasTile(tx + 1, ty);
-
-                    let x1 = tile.x * tileSize;
-                    let y1 = tile.y * tileSize;
-                    let x2 = (tile.x + 1) * tileSize;
-                    let y2 = (tile.y + 1) * tileSize;
-
+                    const tx = tile.targetX,
+                        ty = tile.targetY;
+                    const T = hasTile(tx, ty - 1),
+                        B = hasTile(tx, ty + 1),
+                        L = hasTile(tx - 1, ty),
+                        R = hasTile(tx + 1, ty);
+                    let x1 = tile.x * tileSize,
+                        y1 = tile.y * tileSize,
+                        x2 = (tile.x + 1) * tileSize,
+                        y2 = (tile.y + 1) * tileSize;
                     if (!L) x1 += margin;
                     if (!R) x2 -= margin;
                     if (!T) y1 += margin;
                     if (!B) y2 -= margin;
+                    if (L) x1 -= 0.5;
+                    if (R) x2 += 0.5;
+                    if (T) y1 -= 0.5;
+                    if (B) y2 += 0.5;
 
-                    const seamOverdrive = 0.5;
-                    if (L) x1 -= seamOverdrive;
-                    if (R) x2 += seamOverdrive;
-                    if (T) y1 -= seamOverdrive;
-                    if (B) y2 += seamOverdrive;
-
-                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
-                    const isTileDocked = (cellOrig === '.' || cellOrig === '*' || cellOrig === '+');
-
-                    if (block.isTrapped) {
-                        ctx.fillStyle = '#ef4444'; 
-                    } else if (isTileDocked) {
-                        ctx.fillStyle = '#22c55e'; 
-                    } else {
-                        ctx.fillStyle = '#737373'; 
+                    const cellOrig = originalGrid[ty]?.[tx];
+                    const isTileDocked = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                    // Determine heat contact for this tile (only if block is heat)
+                    let heatContact = false;
+                    if (isHeatBox(block.char)) {
+                        const neighbours = [
+                            [ty - 1, tx],
+                            [ty + 1, tx],
+                            [ty, tx - 1],
+                            [ty, tx + 1]
+                        ];
+                        for (let [nr, nc] of neighbours) {
+                            const other = visualBlocks.find(b => b !== block && b.tiles.some(t => t.targetX === nc &&
+                                t.targetY === nr));
+                            if (other) { heatContact = true; break; }
+                        }
                     }
+
+                    if (block.isTrapped) ctx.fillStyle = '#ef4444';
+                    else if (heatContact) ctx.fillStyle = '#ef4444'; // red for contact
+                    else if (isTileDocked) ctx.fillStyle = '#22c55e';
+                    else if (isTransparentBox(block.char)) ctx.fillStyle = 'rgba(128,128,128,0.5)';
+                    else if (isIceBox(block.char)) ctx.fillStyle = '#737373';
+                    else if (isHeatBox(block.char)) ctx.fillStyle = '#737373';
+                    else ctx.fillStyle = '#737373';
 
                     ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
                 });
+
+                // Outline color
+                let outlineColor = '#000000';
+                if (isIceBox(block.char)) outlineColor = '#3b82f6'; // blue
+                else if (isHeatBox(block.char)) outlineColor = '#ef4444'; // red
 
                 const drawOutline = (pad, strokeStyle, lineWidth) => {
                     ctx.strokeStyle = strokeStyle;
                     ctx.lineWidth = lineWidth;
                     ctx.lineCap = 'square';
                     ctx.lineJoin = 'miter';
-
                     block.tiles.forEach(tile => {
-                        const tx = tile.targetX;
-                        const ty = tile.targetY;
-                        const visualX = tile.x * tileSize;
-                        const visualY = tile.y * tileSize;
-
-                        const T = hasTile(tx, ty - 1);
-                        const B = hasTile(tx, ty + 1);
-                        const L = hasTile(tx - 1, ty);
-                        const R = hasTile(tx + 1, ty);
-                        const TL = hasTile(tx - 1, ty - 1);
-                        const TR = hasTile(tx + 1, ty - 1);
-                        const BL = hasTile(tx - 1, ty + 1);
-                        const BR = hasTile(tx + 1, ty + 1);
-
+                        const tx = tile.targetX,
+                            ty = tile.targetY;
+                        const visualX = tile.x * tileSize,
+                            visualY = tile.y * tileSize;
+                        const T = hasTile(tx, ty - 1),
+                            B = hasTile(tx, ty + 1),
+                            L = hasTile(tx - 1, ty),
+                            R = hasTile(tx + 1, ty);
+                        const TL = hasTile(tx - 1, ty - 1),
+                            TR = hasTile(tx + 1, ty - 1),
+                            BL = hasTile(tx - 1, ty + 1),
+                            BR = hasTile(tx + 1, ty + 1);
                         if (!T) {
                             let x1 = visualX + (L ? (TL ? -pad : 0) : pad);
                             let x2 = visualX + tileSize + (R ? (TR ? pad : 0) : -pad);
-                            let y = visualY + pad;
-                            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(x1, visualY + pad);
+                            ctx.lineTo(x2, visualY + pad);
+                            ctx.stroke();
                         }
-
                         if (!B) {
                             let x1 = visualX + (L ? (BL ? -pad : 0) : pad);
                             let x2 = visualX + tileSize + (R ? (BR ? pad : 0) : -pad);
-                            let y = visualY + tileSize - pad;
-                            ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(x1, visualY + tileSize - pad);
+                            ctx.lineTo(x2, visualY + tileSize - pad);
+                            ctx.stroke();
                         }
-
                         if (!L) {
                             let y1 = visualY + (T ? (TL ? -pad : 0) : pad);
                             let y2 = visualY + tileSize + (B ? (BL ? pad : 0) : -pad);
-                            let x = visualX + pad;
-                            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(visualX + pad, y1);
+                            ctx.lineTo(visualX + pad, y2);
+                            ctx.stroke();
                         }
-
                         if (!R) {
                             let y1 = visualY + (T ? (TR ? -pad : 0) : pad);
                             let y2 = visualY + tileSize + (B ? (BR ? pad : 0) : -pad);
-                            let x = visualX + tileSize - pad;
-                            ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(visualX + tileSize - pad, y1);
+                            ctx.lineTo(visualX + tileSize - pad, y2);
+                            ctx.stroke();
                         }
                     });
                 };
 
-                drawOutline(margin, '#000000', 1.5);
-                drawOutline(margin + innerMargin, '#ffffff', 0.8);
+                drawOutline(margin, outlineColor, 1.5);
+                if (!isTransparentBox(block.char)) {
+                    drawOutline(margin + innerMargin, '#ffffff', 0.8);
+                }
             });
 
-            const pX = visualPlayer.x * tileSize;
-            const pY = visualPlayer.y * tileSize;
-            const pMargin = tileSize * 0.14;
-            const pSize = tileSize - pMargin * 2;
-
+            // Player
+            const pX = visualPlayer.x * tileSize,
+                pY = visualPlayer.y * tileSize;
+            const pMargin = tileSize * 0.14,
+                pSize = tileSize - pMargin * 2;
             ctx.fillStyle = playerCustomBody;
             ctx.fillRect(pX + pMargin, pY + pMargin, pSize, pSize);
-
             if (!visualPlayer.blinkState) {
-                const eyeW = pSize * 0.16;
-                const eyeH = pSize * 0.16;
-                
+                const eyeW = pSize * 0.16,
+                    eyeH = pSize * 0.16;
                 let eyeYOffset = pY + pMargin + (pSize * 0.28);
                 let leftEyeX = pX + pMargin + (pSize * 0.22);
                 let rightEyeX = pX + pMargin + (pSize * 0.62);
-
-                if (visualPlayer.facing === 'left') {
-                    leftEyeX -= 3; rightEyeX -= 3;
-                } else if (visualPlayer.facing === 'right') {
-                    leftEyeX += 3; rightEyeX += 3;
-                } else if (visualPlayer.facing === 'up') {
-                    eyeYOffset -= 3;
-                } else if (visualPlayer.facing === 'down') {
-                    eyeYOffset += 3;
-                }
-
+                if (visualPlayer.facing === 'left') { leftEyeX -= 3;
+                    rightEyeX -= 3; } else if (visualPlayer.facing === 'right') { leftEyeX += 3;
+                    rightEyeX += 3; } else if (visualPlayer.facing === 'up') eyeYOffset -= 3;
+                else if (visualPlayer.facing === 'down') eyeYOffset += 3;
                 if (isLevelFailed) {
                     ctx.strokeStyle = playerCustomEye;
                     ctx.lineWidth = 2.5;
-
                     ctx.beginPath();
-                    ctx.moveTo(leftEyeX - 1, eyeYOffset + eyeH/2); ctx.lineTo(leftEyeX + eyeW + 1, eyeYOffset + eyeH/2);
-                    ctx.moveTo(rightEyeX - 1, eyeYOffset + eyeH/2); ctx.lineTo(rightEyeX + eyeW + 1, eyeYOffset + eyeH/2);
+                    ctx.moveTo(leftEyeX - 1, eyeYOffset + eyeH / 2);
+                    ctx.lineTo(leftEyeX + eyeW + 1, eyeYOffset + eyeH / 2);
+                    ctx.moveTo(rightEyeX - 1, eyeYOffset + eyeH / 2);
+                    ctx.lineTo(rightEyeX + eyeW + 1, eyeYOffset + eyeH / 2);
                     ctx.stroke();
                 } else {
                     ctx.fillStyle = playerCustomEye;
@@ -3199,9 +3575,57 @@
                 ctx.save();
                 ctx.globalAlpha = p.alpha;
                 ctx.fillStyle = p.color;
-                ctx.fillRect((p.x * tileSize) - p.size/2, (p.y * tileSize) - p.size/2, p.size, p.size);
+                ctx.fillRect((p.x * tileSize) - p.size / 2, (p.y * tileSize) - p.size / 2, p.size, p.size);
                 ctx.restore();
             });
+        }
+
+        // --------------------------------------------------------------
+        // RESPAWN / TELEPORT TO (2,2) – visible only on overworld
+        // --------------------------------------------------------------
+        function resetOverworldPosition() {
+            if (gameState !== "overworld") return;
+
+            // Target: node (2,2) in overworld coordinates → grid position
+            const targetX = 2,
+                targetY = 2;
+            const gridRows = overworldGrid.length;
+            const targetR = gridRows - 1 - targetY;
+            const targetC = targetX;
+
+            // Validate the target cell is walkable
+            if (targetR < 0 || targetR >= gridRows || targetC < 0 || targetC >= overworldGrid[targetR].length) {
+                showBottomHudText("Invalid spawn position!", 1500);
+                return;
+            }
+            if (overworldGrid[targetR][targetC] === '#') {
+                showBottomHudText("Spawn position blocked!", 1500);
+                return;
+            }
+
+            // Teleport the player
+            overworldPlayerPos = { r: targetR, c: targetC };
+            visualOverworldPlayer.x = targetC;
+            visualOverworldPlayer.y = targetR;
+            visualOverworldPlayer.targetX = targetC;
+            visualOverworldPlayer.targetY = targetR;
+            overworldCamera.x = targetC;
+            overworldCamera.y = targetR;
+
+            localStorage.setItem('boxpush_overworld_pos', JSON.stringify(overworldPlayerPos));
+            playSfx('step');
+            showBottomHudText("Teleported to spawn (2, 2)!", 2000);
+
+            // Hide any lingering info text from the previous location
+            // The overworld will re-check the node when the player moves, but we clear it here.
+            hideBottomHudText();
+            // Re-show the spawn node's info text after a short delay
+            setTimeout(() => {
+                const node = OVERWORLD.nodes["2,2"];
+                if (node && node.type === 'info') {
+                    showBottomHudText(node.text, 4000);
+                }
+            }, 300);
         }
     </script>
 </body>
