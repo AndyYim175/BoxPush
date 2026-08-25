@@ -28,6 +28,27 @@
         ::-webkit-scrollbar-thumb {
             background: #000000;
         }
+        #editor-textarea {
+            font-family: 'Fira Code', Monospace;
+            font-size: 26px;
+            line-height: 1.5;
+            tab-size: 4;
+            resize: vertical;
+            min-height: 240px;
+        }
+        #editor-textarea:focus {
+            outline: none;
+            border-color: #000;
+        }
+        .editor-status-ok {
+            color: #16a34a;
+        }
+        .editor-status-error {
+            color: #dc2626;
+        }
+        .editor-status-info {
+            color: #2563eb;
+        }
     </style>
 </head>
 <body class="h-full w-full overflow-hidden flex flex-col justify-between items-center relative bg-[#dcdcdc]">
@@ -41,6 +62,9 @@
             </button>
             <button id="btn-back" onclick="exitToOverworld()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Back to Overworld">
                 <span class="material-symbols-outlined select-none text-xl leading-none">arrow_back</span>
+            </button>
+            <button id="btn-back-title" onclick="exitToTitleFromGame()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Back to Title">
+                <span class="material-symbols-outlined select-none text-xl leading-none">back_to_tab</span>
             </button>
         </div>
 
@@ -57,6 +81,11 @@
 
         <button id="btn-customize" onclick="toggleCustomizeModal()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Customize Character">
             <span class="material-symbols-outlined select-none text-xl leading-none">palette</span>
+        </button>
+
+        <!-- Editor-only: Back to Editor from playtest -->
+        <button id="btn-back-editor" onclick="exitPlaytestToEditor()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Back to Editor">
+            <span class="material-symbols-outlined select-none text-xl leading-none">edit</span>
         </button>
     </div>
 
@@ -195,7 +224,7 @@
     </div>
 
     <!-- Title Screen -->
-    <div id="title-screen" class="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#dcdcdc] p-8 hidden">
+    <div id="title-screen" class="fixed inset-0 z-50 flex flex-col justify-between items-center bg-[#dcdcdc] p-8">
         <div class="w-full max-w-xs h-1 bg-black"></div>
         <div class="flex flex-col items-center space-y-8 select-none">
             <h1 class="font-black text-4xl md:text-5xl tracking-[0.25em] text-black text-center uppercase leading-none">
@@ -208,6 +237,9 @@
                 <button onclick="startGameFromTitle()" class="w-full py-4 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
                     PLAY GAME
                 </button>
+                <button onclick="openLevelEditor()" class="w-full py-4 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
+                    LEVEL EDITOR
+                </button>
                 <button onclick="showCredits()" class="w-full py-4 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
                     CREDITS
                 </button>
@@ -216,6 +248,42 @@
         <p class="text-[9px] font-mono text-black/35 tracking-wider uppercase">
             v3.0 / expansion update
         </p>
+    </div>
+
+    <!-- Editor Screen -->
+    <div id="editor-screen" class="fixed inset-0 z-50 flex flex-col bg-[#dcdcdc] p-4 md:p-6 hidden">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-3">
+                <button onclick="exitEditorToTitle()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-base">close</span>
+                    <span>EXIT</span>
+                </button>
+                <h2 class="font-black text-sm tracking-widest uppercase text-black">LEVEL EDITOR</h2>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="validateEditorGrid()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
+                    <span class="material-symbols-outlined select-none text-xl leading-none">check_circle</span>
+                </button>
+                <button onclick="playtestEditorGrid()" class="h-11 px-4 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
+                    <span class="material-symbols-outlined select-none text-xl leading-none">experiment</span>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 flex flex-col md:flex-row gap-3 min-h-0">
+            <div class="flex-1 flex flex-col min-h-0">
+                <label class="text-[10px] font-black tracking-widest text-black/60 mb-1">Note: NOT saved on exit to menu!</label>
+                <textarea id="editor-textarea" class="flex-1 w-full border border-black bg-white p-3 font-mono text-sm leading-relaxed resize-none min-h-[200px] rounded-none" spellcheck="false" placeholder="#########&#10;#       #&#10;# @ $ . #&#10;#       #&#10;#########"></textarea>
+            </div>
+            <div class="md:w-64 flex flex-col gap-2">
+                <div id="editor-status" class="bg-white border border-black p-3 flex-1 min-h-[100px] overflow-y-auto text-xs font-mono leading-relaxed">
+                    <div class="text-neutral-400">Ready. Paste a grid and click Validate or Playtest.</div>
+                </div>
+                <div class="bg-white border border-black p-3 text-[12px] font-black tracking-widest text-black/50">
+                    <span class="block">Use: <span class="text-black">#</span> wall, <span class="text-black">@</span> player, <span class="text-black">$</span> box, <span class="text-black">.</span> target</span>
+                    <span class="block mt-1">Also: <span class="text-black">x</span> trap, <span class="text-black">I</span> ice, <span class="text-black">A-D</span> big, <span class="text-black">E-H</span> ice, <span class="text-black">J-M</span> fire, <span class="text-black">N-Q</span> transparent, <span class="text-black">a-z</span> move tiles</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Credits Modal -->
@@ -267,13 +335,14 @@
     </div>
 
     <script>
-        // yes
+        // ───────────────────────────────────────────────────────────────
+        //  CORE CONSTANTS & HELPERS
+        // ───────────────────────────────────────────────────────────────
 
         const ENTRANCE_MODE = 1;
         const LERP_SPEED = 0.22;
         const MAX_ANIMATION_SPEED = 0.24;
 
-        // Move-limit tile mapping: lowercase letter -> number of moves (0 = infinite)
         const MOVE_TILE_LIMITS = {
             'a': 0,
             'b': 1,
@@ -302,7 +371,6 @@
             'z': 200,
         };
 
-        // New block type definitions
         const ICE_BOX_LETTERS = new Set(['E', 'F', 'G', 'H']);
         const HEAT_BOX_LETTERS = new Set(['J', 'K', 'L', 'M']);
         const TRANSPARENT_BOX_LETTERS = new Set(['N', 'O', 'P', 'Q']);
@@ -315,13 +383,35 @@
 
         function isStructureLetter(char) {
             if (!char) return false;
-            // Uppercase letters A-Z except known special ones
             if (char < 'A' || char > 'Z') return false;
             if (char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ' || char === 'I')
                 return false;
-            // include our new sets
             return true;
         }
+
+        function isDigit(char) {
+            if (!char) return false;
+            return char >= '0' && char <= '9';
+        }
+
+        function getMaxColumns(grid) {
+            let max = 0;
+            grid.forEach(row => { if (row.length > max) max = row.length; });
+            return max;
+        }
+
+        function parseMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-black">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                .replace(/`(.*?)`/g,
+                    '<code class="bg-neutral-100 px-1.5 py-0.5 font-mono text-[11px] font-black tracking-wide border border-neutral-300">$1</code>'
+                    );
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  LEVEL DATA
+        // ───────────────────────────────────────────────────────────────
 
         const LEVELS = [{
             name: "The start of everything",
@@ -1348,9 +1438,10 @@
             desc: "These boxes can be pushed in groups with other boxes in this group, bypassing the one-box limit."
         }, ];
 
-        /************************************************************************
-         * OVERWORLD GRID CONFIGURATION
-         ************************************************************************/
+        // ───────────────────────────────────────────────────────────────
+        //  OVERWORLD
+        // ───────────────────────────────────────────────────────────────
+
         const OVERWORLD_COMPRESSED = [
             "#[72] [3]#[30]",
             "#[72] [3]#[30]",
@@ -1427,7 +1518,7 @@
                 "30,21": { type: "level", index: 15, label: "16" },
                 "32,21": { type: "level", index: 16, label: "17" },
                 "34,21": { type: "level", index: 17, label: "18" },
-                "32,25": { type: "level", index: 60, label: "T1" }, //test
+                "32,25": { type: "level", index: 60, label: "T1" },
 
                 "34,25": { type: "info", text: "This is a test level, you can use it to test all previous mechanics." },
                 "30,25": { type: "info", text: "They do not count towards regular progress on completion." },
@@ -1492,9 +1583,6 @@
                 "73,12": { type: "info", text: "Pick a path! You'll have to do both eventually anyways." },
                 "73,17": { type: "info", text: "Left: 41-45, Right: 46-50" },
 
-
-
-                //Fire path
                 "70,17": { type: "info", text: "Fire path" },
                 "70,15": { type: "level", index: 40, label: "41" },
                 "68,15": { type: "level", index: 41, label: "42" },
@@ -1502,7 +1590,6 @@
                 "68,19": { type: "level", index: 43, label: "44" },
                 "70,19": { type: "level", index: 44, label: "45" },
 
-                //Ice path
                 "76,17": { type: "info", text: "Ice path" },
                 "76,15": { type: "level", index: 45, label: "46" },
                 "78,15": { type: "level", index: 46, label: "47" },
@@ -1527,8 +1614,6 @@
 
                 "73,33": { type: "lock", required: 60 },
                 "73,35": { type: "info", text: "GG! You win! Thanks for playing!" },
-                //remember to change the test level's index on future updates!!
-
             }
         };
 
@@ -1540,8 +1625,11 @@
             });
         }
 
-        // Core Game Engine State
-        let gameState = "title";
+        // ───────────────────────────────────────────────────────────────
+        //  GAME STATE
+        // ───────────────────────────────────────────────────────────────
+
+        let gameState = "title"; // "title" | "overworld" | "level" | "editor" | "playtest"
         let activeLevelIndex = 0;
         let activeGrid = [];
         let originalGrid = [];
@@ -1586,23 +1674,17 @@
         let levelHasMoveTiles = false;
         let overworldEntrancePos = { r: 1, c: 2 };
 
+        // Editor state
+        let editorCustomGrid = null;
+        let isInPlaytest = false;
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         let audioCtx;
 
-        function isDigit(char) {
-            if (!char) return false;
-            return char >= '0' && char <= '9';
-        }
-
-        // Already defined: isIceBox, isHeatBox, isTransparentBox, isStructureLetter
-
-        function parseMarkdown(text) {
-            return text
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-black">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                .replace(/`(.*?)`/g, '<code class="bg-neutral-100 px-1.5 py-0.5 font-mono text-[11px] font-black tracking-wide border border-neutral-300">$1</code>');
-        }
+        // ───────────────────────────────────────────────────────────────
+        //  AUDIO
+        // ───────────────────────────────────────────────────────────────
 
         function playSynthBeep(frequency, duration, type = 'sine', volume = 0.05) {
             try {
@@ -1614,15 +1696,12 @@
                 }
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-
                 osc.type = type;
                 osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
                 gain.gain.setValueAtTime(volume, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-
                 osc.start();
                 osc.stop(audioCtx.currentTime + duration);
             } catch (e) {}
@@ -1668,6 +1747,10 @@
             }
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  INIT
+        // ───────────────────────────────────────────────────────────────
+
         window.addEventListener('load', () => {
             const savedProgress = localStorage.getItem('boxpush_highest_level');
             if (savedProgress) {
@@ -1708,7 +1791,6 @@
                 } catch (e) {}
             }
 
-            // Always find the entrance '@' to set fallback position
             for (let r = 0; r < overworldGrid.length; r++) {
                 for (let c = 0; c < overworldGrid[r].length; c++) {
                     if (overworldGrid[r][c] === '@') {
@@ -1754,12 +1836,19 @@
             requestAnimationFrame(gameTick);
         });
 
+        // ───────────────────────────────────────────────────────────────
+        //  UI / NAVIGATION
+        // ───────────────────────────────────────────────────────────────
+
         function loadTitleScreen() {
             gameState = "title";
             document.getElementById('title-screen').classList.remove('hidden');
+            document.getElementById('editor-screen').classList.add('hidden');
             document.getElementById('btn-menu').classList.add('hidden');
             document.getElementById('btn-customize').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-back-title').classList.add('hidden');
+            document.getElementById('btn-back-editor').classList.add('hidden');
             document.getElementById('btn-respawn').classList.add('hidden');
             document.getElementById('level-title-display').classList.add('hidden');
             document.getElementById('overworld-stats').classList.add('hidden');
@@ -1768,18 +1857,38 @@
             document.getElementById('mobile-dpad-container').classList.add('hidden');
             document.getElementById('hud-coordinates').classList.add('hidden');
             document.getElementById('moves-counter').classList.add('hidden');
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            hideBottomHudText();
+            scaleAndRenderCanvas();
         }
 
         function startGameFromTitle() {
             document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('editor-screen').classList.add('hidden');
             document.getElementById('btn-menu').classList.remove('hidden');
             document.getElementById('btn-customize').classList.remove('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
-
+            document.getElementById('btn-back-title').classList.remove('hidden');
             loadOverworld();
             playSfx('enter');
+        }
+
+        function exitToTitleFromGame() {
+            if (gameState === "level" || gameState === "playtest") {
+                // If in a level or playtest, ask for confirmation or just exit
+                if (isLevelSolved) {
+                    // Already solved, just exit
+                }
+                loadTitleScreen();
+                playSfx('enter');
+            } else if (gameState === "overworld") {
+                loadTitleScreen();
+                playSfx('enter');
+            } else {
+                loadTitleScreen();
+            }
         }
 
         function showCredits() {
@@ -1838,7 +1947,7 @@
 
         function toggleBottomHint() {
             const currentLevel = LEVELS[activeLevelIndex];
-            if (!currentLevel.hint) return;
+            if (!currentLevel || !currentLevel.hint) return;
             showBottomHudText(currentLevel.hint, 5000);
         }
 
@@ -1861,7 +1970,6 @@
             hud.classList.add('opacity-0');
         }
 
-        // Get number of completed normal levels (non-special)
         function getCompletedNormalCount() {
             let count = 0;
             completedLevels.forEach(idx => {
@@ -1870,18 +1978,27 @@
             return count;
         }
 
+        function getNormalLevels() {
+            return LEVELS.filter(lvl => !lvl.special);
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  OVERWORLD LOADING
+        // ───────────────────────────────────────────────────────────────
+
         function loadOverworld() {
             gameState = "overworld";
             document.getElementById('level-title-display').textContent = "OVERWORLD MAP";
             document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
             document.getElementById('btn-back').classList.add('hidden');
-            // Show respawn button on overworld
+            document.getElementById('btn-back-editor').classList.add('hidden');
             document.getElementById('btn-respawn').classList.remove('hidden');
             document.getElementById('bottom-hint-wrapper').classList.add('hidden');
-            document.getElementById('moves-counter').classList.add('hidden'); // hide moves counter in overworld
+            document.getElementById('moves-counter').classList.add('hidden');
 
             document.getElementById('btn-menu').classList.remove('hidden');
             document.getElementById('btn-customize').classList.remove('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
             document.getElementById('level-title-display').classList.remove('hidden');
             document.getElementById('mobile-dpad-container').classList.remove('hidden');
             document.getElementById('hud-coordinates').classList.remove('hidden');
@@ -1894,12 +2011,18 @@
             scaleAndRenderCanvas();
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  LEVEL LOADING (shared between regular and custom)
+        // ───────────────────────────────────────────────────────────────
+
         function loadLevel(index, preserveHistory = false) {
             if (index < 0 || index >= LEVELS.length) return;
             activeLevelIndex = index;
-
-            // Hide respawn button inside levels
-            document.getElementById('btn-respawn').classList.add('hidden');
+            const selectedLevel = LEVELS[index];
+            const gridData = selectedLevel.grid;
+            const name = selectedLevel.name;
+            const hint = selectedLevel.hint || '';
+            const isSpecial = !!selectedLevel.special;
 
             if (gameState === "overworld") {
                 levelEntryState.preEntryPosition = { ...overworldPlayerPos };
@@ -1919,10 +2042,24 @@
             localStorage.setItem('boxpush_attempted_levels', JSON.stringify(Array.from(attemptedLevels)));
             renderRulesCodex();
 
-            const selectedLevel = LEVELS[index];
+            setupLevelFromGrid(gridData, name, hint, isSpecial, preserveHistory);
 
-            activeGrid = selectedLevel.grid.map(row => row.split(''));
-            originalGrid = selectedLevel.grid.map(row => row.split(''));
+            if (!isSpecial) {
+                document.getElementById('btn-back').classList.remove('hidden');
+            }
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            document.getElementById('btn-back-editor').classList.add('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
+
+            gameState = "level";
+            playSfx('enter');
+            scaleAndRenderCanvas();
+        }
+
+        function setupLevelFromGrid(gridData, name, hint, isSpecial, preserveHistory) {
+            activeGrid = gridData.map(row => row.split(''));
+            originalGrid = gridData.map(row => row.split(''));
 
             levelHasMoveTiles = false;
             for (let r = 0; r < originalGrid.length; r++) {
@@ -1952,28 +2089,18 @@
             isLevelSolved = false;
 
             const topTitleText = document.getElementById('level-title-display');
-            topTitleText.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}${selectedLevel.special ? ' (SPECIAL)' : ''}`;
-
-            document.getElementById('btn-menu').classList.remove('hidden');
-            document.getElementById('btn-customize').classList.add('hidden');
-            document.getElementById('level-title-display').classList.remove('hidden');
-            document.getElementById('mobile-dpad-container').classList.remove('hidden');
-            document.getElementById('hud-coordinates').classList.remove('hidden');
+            const displayName = isSpecial ? `${name} (SPECIAL)` : name;
+            topTitleText.textContent = `LEVEL ${activeLevelIndex + 1}: ${displayName}`;
 
             document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
-            document.getElementById('btn-back').classList.remove('hidden');
-
-            document.getElementById('overworld-stats').classList.add('hidden');
-            document.getElementById('zoom-controls').classList.add('hidden');
 
             const hintTitle = document.getElementById('hints-level-title');
             const hintDesc = document.getElementById('hints-level-desc');
             const bottomHintWrapper = document.getElementById('bottom-hint-wrapper');
 
-            hintTitle.textContent = `LEVEL ${index + 1}: ${selectedLevel.name}`;
-
-            if (selectedLevel.hint && selectedLevel.hint.trim() !== "") {
-                hintDesc.textContent = selectedLevel.hint;
+            hintTitle.textContent = `LEVEL ${activeLevelIndex + 1}: ${name}`;
+            if (hint && hint.trim() !== "") {
+                hintDesc.textContent = hint;
                 bottomHintWrapper.classList.remove('hidden');
             } else {
                 hintDesc.textContent = "No hint is provided for this level.";
@@ -2034,7 +2161,8 @@
                             for (const offset of neighbors) {
                                 const nr = curr.r + offset.r;
                                 const nc = curr.c + offset.c;
-                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length : 0)) {
+                                if (nr >= 0 && nr < rows && nc >= 0 && nc < (activeGrid[nr] ? activeGrid[nr].length :
+                                        0)) {
                                     if (!visited[nr][nc] && activeGrid[nr][nc] === cellValue) {
                                         visited[nr][nc] = true;
                                         queue.push({ r: nr, c: nc });
@@ -2056,70 +2184,190 @@
             particles = [];
             buildLevelsSidebar();
             hideSidebar();
+        }
 
-            gameState = "level";
+        // ───────────────────────────────────────────────────────────────
+        //  CUSTOM LEVEL (EDITOR)
+        // ───────────────────────────────────────────────────────────────
+
+        function openLevelEditor() {
+            document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('editor-screen').classList.remove('hidden');
+            gameState = "editor";
+            isInPlaytest = false;
+            editorCustomGrid = null;
+
+            // Set default example grid
+            const defaultGrid = [
+                "#########",
+                "#       #",
+                "# @ $ . #",
+                "#       #",
+                "#########"
+            ].join('\n');
+            document.getElementById('editor-textarea').value = defaultGrid;
+
+            document.getElementById('editor-status').innerHTML =
+                `<div class="text-neutral-400">Ready. Paste a grid and click Validate or Playtest.</div>`;
+
+            document.getElementById('btn-menu').classList.add('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            document.getElementById('btn-back-editor').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
+            document.getElementById('level-title-display').classList.add('hidden');
+            document.getElementById('overworld-stats').classList.add('hidden');
+            document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('zoom-controls').classList.add('hidden');
+            document.getElementById('mobile-dpad-container').classList.add('hidden');
+            document.getElementById('hud-coordinates').classList.add('hidden');
+            document.getElementById('moves-counter').classList.add('hidden');
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            hideBottomHudText();
+            scaleAndRenderCanvas();
+        }
+
+        function exitEditorToTitle() {
+            document.getElementById('editor-screen').classList.add('hidden');
+            loadTitleScreen();
+            playSfx('enter');
+        }
+
+        function validateEditorGrid() {
+            const text = document.getElementById('editor-textarea').value;
+            const result = parseAndValidateGrid(text);
+            const statusEl = document.getElementById('editor-status');
+
+            if (!result.valid) {
+                statusEl.innerHTML = `<div class="editor-status-error">Error: ${result.error}</div>`;
+                return;
+            }
+
+            statusEl.innerHTML = `<div class="editor-status-ok">Grid valid! ${result.grid.length}×${getMaxColumns(result.grid)}, spawn=(${result.playerPos.c},${result.playerPos.r}.${result.goalCount})target(s)+${result.boxCount}box(es).</div>`;
+            editorCustomGrid = result.grid;
+        }
+
+        function parseAndValidateGrid(text) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+                return { valid: false, error: 'Grid is empty.' };
+            }
+
+            const grid = lines.map(line => line.split(''));
+            const maxCol = getMaxColumns(grid);
+
+            let playerCount = 0;
+            let playerPos = null;
+            let goalCount = 0;
+            let boxCount = 0;
+
+            for (let r = 0; r < grid.length; r++) {
+                const row = grid[r];
+                // Pad row to maxCol with spaces
+                while (row.length < maxCol) row.push(' ');
+                for (let c = 0; c < row.length; c++) {
+                    const ch = row[c];
+                    if (ch === '@') { playerCount++;
+                        playerPos = { r, c }; } else if (ch === '.') goalCount++;
+                    else if (ch === '$' || ch === '*') boxCount++;
+                    else if (ch === '#' || ch === ' ' || ch === 'x' || ch === 'I') { /* valid */ } else if (ch >= 'A' && ch <=
+                        'Z') { /* valid structure letter */ } else if (ch >= 'a' && ch <= 'z') { /* valid move tile */ } else if (
+                        ch >= '0' && ch <= '9') { /* valid digit */ } else {
+                        return { valid: false, error: `Invalid character '${ch}' at (${c}, ${r}).` };
+                    }
+                }
+            }
+
+            if (playerCount === 0) {
+                return { valid: false, error: 'No player (@) found.' };
+            }
+            if (playerCount > 1) {
+                return { valid: false, error: `Multiple players found (${playerCount}).` };
+            }
+            if (goalCount === 0) {
+                return { valid: false, error: 'No targets (.) found.' };
+            }
+            if (boxCount === 0) {
+                return { valid: false, error: 'No boxes ($) found.' };
+            }
+
+            return { valid: true, grid, playerPos, goalCount, boxCount };
+        }
+
+        function playtestEditorGrid() {
+            const text = document.getElementById('editor-textarea').value;
+            const result = parseAndValidateGrid(text);
+
+            if (!result.valid) {
+                const statusEl = document.getElementById('editor-status');
+                statusEl.innerHTML = `<div class="editor-status-error">❌ ${result.error}</div>`;
+                return;
+            }
+
+            editorCustomGrid = result.grid;
+            isInPlaytest = true;
+
+            // Hide editor UI, show game
+            document.getElementById('editor-screen').classList.add('hidden');
+
+            // Load the custom grid as a playtest level
+            const gridData = editorCustomGrid.map(row => row.join(''));
+            const name = "Custom Level";
+
+            // Set up the level
+            setupLevelFromGrid(gridData, name, "Your custom level. Good luck!", false, false);
+
+            // Override gameState to "playtest"
+            gameState = "playtest";
+
+            document.getElementById('level-title-display').textContent = `PLAYTEST: ${name}`;
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-back-editor').classList.remove('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
+            document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+
+            // Show moves counter if needed
+            if (levelHasMoveTiles) {
+                document.getElementById('moves-counter').classList.remove('hidden');
+                document.getElementById('moves-number').textContent = '∞';
+            } else {
+                document.getElementById('moves-counter').classList.add('hidden');
+            }
+
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+
             playSfx('enter');
             scaleAndRenderCanvas();
         }
 
-        function triggerCinematicTransition(direction, onHalfway) {
-            onHalfway();
-        }
+        function exitPlaytestToEditor() {
+            if (gameState === "playtest") {
+                // Return to editor
+                document.getElementById('editor-screen').classList.remove('hidden');
+                document.getElementById('btn-back-editor').classList.add('hidden');
+                document.getElementById('btn-back').classList.add('hidden');
+                document.getElementById('level-title-display').classList.add('hidden');
+                document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('mobile-dpad-container').classList.add('hidden');
+                document.getElementById('hud-coordinates').classList.add('hidden');
+                document.getElementById('moves-counter').classList.add('hidden');
+                document.getElementById('bottom-hint-wrapper').classList.add('hidden');
 
-        function changeZoom(amount) {
-            targetOverworldZoom = Math.min(2.5, Math.max(0.6, targetOverworldZoom + amount));
-            localStorage.setItem('boxpush_overworld_zoom', targetOverworldZoom);
-        }
-
-        function showClearConfirm() {
-            document.getElementById('clear-normal-view').classList.add('hidden');
-            document.getElementById('clear-confirm-view').classList.remove('hidden');
-        }
-
-        function cancelClearData() {
-            document.getElementById('clear-normal-view').classList.remove('hidden');
-            document.getElementById('clear-confirm-view').classList.add('hidden');
-        }
-
-        function confirmClearData() {
-            localStorage.removeItem('boxpush_highest_level');
-            localStorage.removeItem('boxpush_completed_levels');
-            localStorage.removeItem('boxpush_attempted_levels');
-            localStorage.removeItem('boxpush_overworld_pos');
-
-            highestLevelPlayed = 1;
-            completedLevels = new Set();
-            attemptedLevels = new Set();
-
-            cancelClearData();
-            buildLevelsSidebar();
-            renderRulesCodex();
-            loadOverworld();
-            playSfx('fail');
-        }
-
-        function setBodyColor(color) {
-            playerCustomBody = color;
-            document.getElementById('body-picker').value = color;
-            localStorage.setItem('boxpush_custom_body', color);
-        }
-
-        function setEyeColor(color) {
-            playerCustomEye = color;
-            document.getElementById('eye-picker').value = color;
-            localStorage.setItem('boxpush_custom_eye', color);
-        }
-
-        function toggleCustomizeModal() {
-            const modal = document.getElementById('customize-modal');
-            if (modal.classList.contains('hidden')) {
-                modal.classList.remove('hidden');
-                document.getElementById('body-picker').value = playerCustomBody;
-                document.getElementById('eye-picker').value = playerCustomEye;
-            } else {
-                modal.classList.add('hidden');
+                gameState = "editor";
+                isInPlaytest = false;
+                scaleAndRenderCanvas();
+                playSfx('enter');
             }
         }
+
+        // ───────────────────────────────────────────────────────────────
+        //  COMPUTATIONS
+        // ───────────────────────────────────────────────────────────────
 
         function computeFloorMap() {
             const rows = activeGrid.length;
@@ -2290,79 +2538,13 @@
             }
         }
 
-        function getMaxColumns(grid) {
-            let max = 0;
-            grid.forEach(row => {
-                if (row.length > max) max = row.length;
-            });
-            return max;
-        }
-
-        function scaleAndRenderCanvas() {
-            const container = canvas.parentElement;
-            const cw = container.clientWidth;
-            const ch = container.clientHeight;
-
-            let gridRows, gridCols;
-            if (gameState === "overworld") {
-                gridRows = overworldGrid.length;
-                gridCols = getMaxColumns(overworldGrid);
-            } else {
-                gridRows = activeGrid.length;
-                gridCols = getMaxColumns(activeGrid);
-            }
-
-            const tileSize = Math.min(Math.floor(cw / gridCols), Math.floor(ch / gridRows), 64);
-
-            if (gameState === "overworld") {
-                canvas.width = cw;
-                canvas.height = ch;
-            } else {
-                canvas.width = gridCols * tileSize;
-                canvas.height = gridRows * tileSize;
-            }
-        }
-
-        function createExplosion(x, y, color, count = 12) {
-            for (let i = 0; i < count; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 0.05 + Math.random() * 0.12;
-                particles.push({
-                    x: x + 0.5,
-                    y: y + 0.5,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    size: 3 + Math.random() * 5,
-                    color: color,
-                    alpha: 1.0,
-                    decay: 0.03 + Math.random() * 0.04
-                });
-            }
-        }
-
-        function handleKeyDown(e) {
-            const isSidebarOpen = !document.getElementById('sidebar-menu').classList.contains('-translate-x-full');
-            if (isSidebarOpen) return;
-
-            let direction = '';
-            const key = e.key.toLowerCase();
-
-            if (key === 'arrowup' || key === 'w') direction = 'up';
-            if (key === 'arrowdown' || key === 's') direction = 'down';
-            if (key === 'arrowleft' || key === 'a') direction = 'left';
-            if (key === 'arrowright' || key === 'd') direction = 'right';
-
-            if (key === 'r' && gameState === "level") {
-                resetCurrentLevel();
-            }
-            if ((key === 'z' || key === 'u') && gameState === "level") {
-                undoMove();
-            }
-
-            if (direction) {
-                e.preventDefault();
-                handleDirectionalInput(direction);
-            }
+        function getBaselineCell(r, c) {
+            const originalVal = originalGrid[r][c];
+            if (originalVal === '.' || originalVal === '*' || originalVal === '+') return '.';
+            if (originalVal === 'x') return 'x';
+            if (originalVal === 'I') return 'I';
+            if (isDigit(originalVal)) return originalVal;
+            return ' ';
         }
 
         function getSatisfiedCount() {
@@ -2388,13 +2570,625 @@
             return true;
         }
 
-        function handleDirectionalInput(direction) {
-            if (gameState === "overworld") {
-                moveOverworldPlayer(direction);
+        // ───────────────────────────────────────────────────────────────
+        //  GAME ACTIONS
+        // ───────────────────────────────────────────────────────────────
+
+        function triggerCinematicTransition(direction, onHalfway) {
+            onHalfway();
+        }
+
+        function changeZoom(amount) {
+            targetOverworldZoom = Math.min(2.5, Math.max(0.6, targetOverworldZoom + amount));
+            localStorage.setItem('boxpush_overworld_zoom', targetOverworldZoom);
+        }
+
+        function showClearConfirm() {
+            document.getElementById('clear-normal-view').classList.add('hidden');
+            document.getElementById('clear-confirm-view').classList.remove('hidden');
+        }
+
+        function cancelClearData() {
+            document.getElementById('clear-normal-view').classList.remove('hidden');
+            document.getElementById('clear-confirm-view').classList.add('hidden');
+        }
+
+        function confirmClearData() {
+            localStorage.removeItem('boxpush_highest_level');
+            localStorage.removeItem('boxpush_completed_levels');
+            localStorage.removeItem('boxpush_attempted_levels');
+            localStorage.removeItem('boxpush_overworld_pos');
+
+            highestLevelPlayed = 1;
+            completedLevels = new Set();
+            attemptedLevels = new Set();
+
+            cancelClearData();
+            buildLevelsSidebar();
+            renderRulesCodex();
+            loadOverworld();
+            playSfx('fail');
+        }
+
+        function setBodyColor(color) {
+            playerCustomBody = color;
+            document.getElementById('body-picker').value = color;
+            localStorage.setItem('boxpush_custom_body', color);
+        }
+
+        function setEyeColor(color) {
+            playerCustomEye = color;
+            document.getElementById('eye-picker').value = color;
+            localStorage.setItem('boxpush_custom_eye', color);
+        }
+
+        function toggleCustomizeModal() {
+            const modal = document.getElementById('customize-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                document.getElementById('body-picker').value = playerCustomBody;
+                document.getElementById('eye-picker').value = playerCustomEye;
             } else {
-                movePlayer(direction);
+                modal.classList.add('hidden');
             }
         }
+
+        function scaleAndRenderCanvas() {
+            const container = canvas.parentElement;
+            const cw = container.clientWidth;
+            const ch = container.clientHeight;
+
+            let gridRows, gridCols;
+            if (gameState === "overworld") {
+                gridRows = overworldGrid.length;
+                gridCols = getMaxColumns(overworldGrid);
+            } else if (gameState === "level" || gameState === "playtest") {
+                gridRows = activeGrid.length;
+                gridCols = getMaxColumns(activeGrid);
+            } else {
+                gridRows = 10;
+                gridCols = 10;
+            }
+
+            const tileSize = Math.min(Math.floor(cw / gridCols), Math.floor(ch / gridRows), 64);
+
+            if (gameState === "overworld") {
+                canvas.width = cw;
+                canvas.height = ch;
+            } else if (gameState === "level" || gameState === "playtest") {
+                canvas.width = gridCols * tileSize;
+                canvas.height = gridRows * tileSize;
+            } else {
+                canvas.width = cw;
+                canvas.height = ch;
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  PLAYER MOVEMENT (with simulation)
+        // ───────────────────────────────────────────────────────────────
+
+        function simulateMove(dr, dc, curPlayer, curBlocks) {
+            let simPlayer = { r: curPlayer.r, c: curPlayer.c };
+            let simBlocks = curBlocks.map(b => ({
+                id: b.id,
+                char: b.char,
+                isTrapped: b.isTrapped,
+                tiles: b.tiles.map(t => ({ x: t.targetX, y: t.targetY }))
+            }));
+
+            const rows = activeGrid.length;
+            const cols = getMaxColumns(activeGrid);
+
+            function getBlockAt(r, c) {
+                return simBlocks.find(b => b.tiles.some(t => t.x === c && t.y === r));
+            }
+
+            function blockOnIce(block) {
+                return block.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
+            }
+
+            function blockIsIceBox(block) { return isIceBox(block.char); }
+
+            function blockIsTransparent(block) { return isTransparentBox(block.char); }
+
+            function blockIsHeat(block) { return isHeatBox(block.char); }
+
+            function isWalkable(r, c, ignorePlayer = false) {
+                if (r < 0 || r >= rows || c < 0 || c >= (activeGrid[r] ? activeGrid[r].length : 0)) return false;
+                const orig = originalGrid[r]?.[c];
+                if (orig === '#') return false;
+                if (isDigit(orig)) return isYellowWallPassable(r, c);
+                if (!ignorePlayer && r === simPlayer.r && c === simPlayer.c) return false;
+                return true;
+            }
+
+            function canMoveSingleBlock(block, dirR, dirC) {
+                for (let tile of block.tiles) {
+                    let nr = tile.y + dirR;
+                    let nc = tile.x + dirC;
+                    if (!isWalkable(nr, nc, true)) return false;
+                    const other = getBlockAt(nr, nc);
+                    if (other && other.id !== block.id) return false;
+                }
+                return true;
+            }
+
+            function moveSingleBlock(block, dirR, dirC) {
+                block.tiles.forEach(t => { t.x += dirC;
+                    t.y += dirR; });
+            }
+
+            function getTransparentChain(startBlockId, dirR, dirC) {
+                const chainIds = [startBlockId];
+                let toProcess = [startBlockId];
+                while (toProcess.length > 0) {
+                    let currentId = toProcess.shift();
+                    let current = simBlocks.find(b => b.id === currentId);
+                    let frontBlocks = new Set();
+                    for (let t of current.tiles) {
+                        let nr = t.y + dirR,
+                            nc = t.x + dirC;
+                        let b = getBlockAt(nr, nc);
+                        if (b && b.id !== current.id && blockIsTransparent(b) && !chainIds.includes(b.id)) {
+                            frontBlocks.add(b.id);
+                        }
+                    }
+                    for (let id of frontBlocks) {
+                        chainIds.push(id);
+                        toProcess.push(id);
+                    }
+                }
+                return chainIds;
+            }
+
+            function canMoveChain(chainIds, dirR, dirC) {
+                for (let id of chainIds) {
+                    const block = simBlocks.find(b => b.id === id);
+                    for (let tile of block.tiles) {
+                        let nr = tile.y + dirR,
+                            nc = tile.x + dirC;
+                        if (!isWalkable(nr, nc, true)) return false;
+                        const other = getBlockAt(nr, nc);
+                        if (other && !chainIds.includes(other.id)) return false;
+                    }
+                }
+                return true;
+            }
+
+            function moveChain(chainIds, dirR, dirC) {
+                chainIds.forEach(id => {
+                    let block = simBlocks.find(b => b.id === id);
+                    moveSingleBlock(block, dirR, dirC);
+                });
+            }
+
+            let pr = simPlayer.r + dr;
+            let pc = simPlayer.c + dc;
+            if (!isWalkable(pr, pc)) return null;
+
+            let slidingGroups = [];
+
+            const blockInFront = getBlockAt(pr, pc);
+            if (blockInFront) {
+                if (blockIsTransparent(blockInFront)) {
+                    const chain = getTransparentChain(blockInFront.id, dr, dc);
+                    if (!canMoveChain(chain, dr, dc)) return null;
+                    moveChain(chain, dr, dc);
+                    simPlayer.r = pr;
+                    simPlayer.c = pc;
+                    const anySlide = chain.some(id => {
+                        const b = simBlocks.find(bl => bl.id === id);
+                        return blockOnIce(b) || blockIsIceBox(b);
+                    });
+                    if (anySlide) {
+                        slidingGroups.push({ ids: chain, dirR: dr, dirC: dc });
+                    }
+                } else {
+                    if (!canMoveSingleBlock(blockInFront, dr, dc)) return null;
+                    moveSingleBlock(blockInFront, dr, dc);
+                    simPlayer.r = pr;
+                    simPlayer.c = pc;
+                    if (blockOnIce(blockInFront) || blockIsIceBox(blockInFront)) {
+                        slidingGroups.push({ ids: [blockInFront.id], dirR: dr, dirC: dc });
+                    }
+                }
+            } else {
+                simPlayer.r = pr;
+                simPlayer.c = pc;
+            }
+
+            let playerSliding = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
+            let maxSlideSteps = 200;
+            let steps = 0;
+            let anyMovement = true;
+
+            while ((playerSliding || slidingGroups.length > 0) && anyMovement && steps < maxSlideSteps) {
+                anyMovement = false;
+                steps++;
+
+                slidingGroups.sort((a, b) => {
+                    const aBlock = simBlocks.find(bl => bl.id === a.ids[0]);
+                    const bBlock = simBlocks.find(bl => bl.id === b.ids[0]);
+                    if (dr !== 0) {
+                        const aY = aBlock.tiles[0].y,
+                            bY = bBlock.tiles[0].y;
+                        return dr > 0 ? bY - aY : aY - bY;
+                    } else {
+                        const aX = aBlock.tiles[0].x,
+                            bX = bBlock.tiles[0].x;
+                        return dc > 0 ? bX - aX : aX - bX;
+                    }
+                });
+
+                let newSlidingGroups = [];
+                for (let group of slidingGroups) {
+                    const canMove = group.ids.length === 1 ? canMoveSingleBlock(simBlocks.find(b => b.id === group.ids[0]),
+                        group.dirR, group.dirC) : canMoveChain(group.ids, group.dirR, group.dirC);
+                    if (canMove) {
+                        if (group.ids.length === 1) moveSingleBlock(simBlocks.find(b => b.id === group.ids[0]), group.dirR,
+                            group.dirC);
+                        else moveChain(group.ids, group.dirR, group.dirC);
+                        anyMovement = true;
+                        let stillSlides = group.ids.some(id => {
+                            const b = simBlocks.find(bl => bl.id === id);
+                            return blockOnIce(b) || blockIsIceBox(b);
+                        });
+                        if (stillSlides) newSlidingGroups.push(group);
+                    }
+                }
+                slidingGroups = newSlidingGroups;
+
+                if (playerSliding) {
+                    let pr2 = simPlayer.r + dr;
+                    let pc2 = simPlayer.c + dc;
+                    if (isWalkable(pr2, pc2)) {
+                        const blockThere = getBlockAt(pr2, pc2);
+                        if (blockThere) {
+                            if (blockIsTransparent(blockThere)) {
+                                const chain = getTransparentChain(blockThere.id, dr, dc);
+                                if (canMoveChain(chain, dr, dc)) {
+                                    moveChain(chain, dr, dc);
+                                    simPlayer.r = pr2;
+                                    simPlayer.c = pc2;
+                                    const anySlide = chain.some(id => {
+                                        const b = simBlocks.find(bl => bl.id === id);
+                                        return blockOnIce(b) || blockIsIceBox(b);
+                                    });
+                                    if (anySlide) slidingGroups.push({ ids: chain, dirR: dr, dirC: dc });
+                                    anyMovement = true;
+                                    if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
+                                } else playerSliding = false;
+                            } else {
+                                if (canMoveSingleBlock(blockThere, dr, dc)) {
+                                    moveSingleBlock(blockThere, dr, dc);
+                                    simPlayer.r = pr2;
+                                    simPlayer.c = pc2;
+                                    if (blockOnIce(blockThere) || blockIsIceBox(blockThere)) {
+                                        slidingGroups.push({ ids: [blockThere.id], dirR: dr, dirC: dc });
+                                    }
+                                    anyMovement = true;
+                                    if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
+                                } else playerSliding = false;
+                            }
+                        } else {
+                            simPlayer.r = pr2;
+                            simPlayer.c = pc2;
+                            anyMovement = true;
+                            if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
+                        }
+                    } else {
+                        playerSliding = false;
+                    }
+                }
+            }
+
+            return { player: simPlayer, blocks: simBlocks };
+        }
+
+        function movePlayer(dir) {
+            if (isLevelFailed || isLevelSolved) return;
+            let dr = 0,
+                dc = 0;
+            if (dir === 'up') { dr = -1;
+                visualPlayer.facing = 'up'; } else if (dir === 'down') { dr = 1;
+                visualPlayer.facing = 'down'; } else if (dir === 'left') { dc = -1;
+                visualPlayer.facing = 'left'; } else if (dir === 'right') { dc = 1;
+                visualPlayer.facing = 'right'; }
+
+            const simResult = simulateMove(dr, dc, playerPos, visualBlocks);
+            if (!simResult) return;
+
+            saveStateToHistory();
+
+            playerPos = simResult.player;
+            visualPlayer.targetX = playerPos.c;
+            visualPlayer.targetY = playerPos.r;
+
+            visualBlocks.forEach((realBlock, idx) => {
+                const simB = simResult.blocks.find(sb => sb.id === realBlock.id);
+                if (!simB) return;
+                simB.tiles.forEach((tile, i) => {
+                    realBlock.tiles[i].targetX = tile.x;
+                    realBlock.tiles[i].targetY = tile.y;
+                });
+            });
+
+            for (let r = 0; r < activeGrid.length; r++)
+                for (let c = 0; c < activeGrid[r].length; c++)
+                    activeGrid[r][c] = getBaselineCell(r, c);
+            visualBlocks.forEach(block => {
+                block.tiles.forEach(tile => {
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                    activeGrid[tile.targetY][tile.targetX] = isGoal ? '*' : block.char;
+                });
+            });
+            activeGrid[playerPos.r][playerPos.c] = originalGrid[playerPos.r][playerPos.c] === '.' ? '+' : '@';
+
+            const finalCell = originalGrid[simResult.player.r]?.[simResult.player.c];
+            if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
+                const limit = MOVE_TILE_LIMITS[finalCell];
+                remainingMoves = (limit === 0) ? Infinity : limit;
+            } else if (remainingMoves !== Infinity) {
+                remainingMoves--;
+                if (remainingMoves <= 0) {
+                    updateMovesDisplay();
+                    checkRules();
+                    return;
+                }
+            }
+            updateMovesDisplay();
+            checkRules();
+        }
+
+        function updateMovesDisplay() {
+            const numberEl = document.getElementById('moves-number');
+            if (levelHasMoveTiles) {
+                numberEl.textContent = (remainingMoves === Infinity) ? '∞' : remainingMoves;
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  RULES & CHECKS
+        // ───────────────────────────────────────────────────────────────
+
+        function checkHeatBoxContact() {
+            for (let block of visualBlocks) {
+                if (!isHeatBox(block.char)) continue;
+                for (let tile of block.tiles) {
+                    const tx = tile.targetX,
+                        ty = tile.targetY;
+                    const neighbours = [
+                        [ty - 1, tx],
+                        [ty + 1, tx],
+                        [ty, tx - 1],
+                        [ty, tx + 1]
+                    ];
+                    for (let [nr, nc] of neighbours) {
+                        if (nr < 0 || nr >= activeGrid.length || nc < 0 || nc >= activeGrid[nr].length) continue;
+                        const other = visualBlocks.find(b => b !== block && b.tiles.some(t => t.targetX === nc && t
+                        .targetY === nr));
+                        if (other) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function checkRules() {
+            // ---- RUN OUT OF MOVES CHECK FIRST ----
+            if (remainingMoves <= 0 && levelHasMoveTiles) {
+                triggerFailureState();
+                return;
+            }
+
+            // Trap check
+            let trapTriggered = false;
+            visualBlocks.forEach(block => {
+                let blockTrapped = false;
+                block.tiles.forEach(tile => {
+                    if (originalGrid[tile.targetY]?.[tile.targetX] === 'x') blockTrapped = true;
+                });
+                block.isTrapped = blockTrapped;
+                if (blockTrapped) trapTriggered = true;
+            });
+            if (trapTriggered) {
+                triggerFailureState();
+                return;
+            }
+
+            // Player on yellow wall
+            const playerOrigCell = originalGrid[playerPos.r][playerPos.c];
+            if (isDigit(playerOrigCell)) {
+                const req = parseInt(playerOrigCell, 10);
+                if (getSatisfiedCount() !== req) {
+                    triggerFailureState();
+                    return;
+                }
+            }
+
+            // Box on yellow wall
+            let boxTrappedInWall = false;
+            visualBlocks.forEach(block => {
+                block.tiles.forEach(tile => {
+                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
+                    if (isDigit(cellOrig) && getSatisfiedCount() !== parseInt(cellOrig, 10)) {
+                        block.isTrapped = true;
+                        boxTrappedInWall = true;
+                    }
+                });
+            });
+            if (boxTrappedInWall) {
+                triggerFailureState();
+                return;
+            }
+
+            // Heat box contact
+            if (checkHeatBoxContact()) {
+                triggerFailureState();
+                return;
+            }
+
+            // Victory
+            checkVictory();
+        }
+
+        function checkVictory() {
+            if (isLevelFailed) return;
+
+            let totalGoals = 0;
+            for (let r = 0; r < originalGrid.length; r++) {
+                for (let c = 0; c < originalGrid[r].length; c++) {
+                    const cell = originalGrid[r][c];
+                    if (cell === '.' || cell === '*' || cell === '+') totalGoals++;
+                }
+            }
+
+            const totalBoxes = visualBlocks.reduce((acc, b) => acc + b.tiles.length, 0);
+            const satisfied = getSatisfiedCount();
+
+            const isWon = (satisfied === totalGoals && totalGoals > 0) || (satisfied === totalBoxes && totalBoxes > 0);
+
+            if (isWon && !isLevelFailed) {
+                isLevelSolved = true;
+                playSfx('win');
+
+                // Only mark as completed if not a custom playtest
+                if (gameState !== "playtest" && !LEVELS[activeLevelIndex]?.special) {
+                    completedLevels.add(activeLevelIndex);
+                    localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
+                    buildLevelsSidebar();
+                }
+
+                setTimeout(() => {
+                    if (gameState === "playtest") {
+                        exitPlaytestToEditor();
+                    } else {
+                        exitToOverworld();
+                    }
+                }, 800);
+            }
+        }
+
+        function triggerFailureState() {
+            isLevelFailed = true;
+            playSfx('fail');
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  HISTORY / UNDO / RESET
+        // ───────────────────────────────────────────────────────────────
+
+        function saveStateToHistory() {
+            historyStack.push({
+                grid: activeGrid.map(row => [...row]),
+                player: { ...playerPos },
+                blocks: visualBlocks.map(b => ({
+                    ...b,
+                    tiles: b.tiles.map(t => ({ ...t }))
+                })),
+                remainingMoves: remainingMoves,
+                isLevelFailed: isLevelFailed
+            });
+            if (historyStack.length > 250) historyStack.shift();
+        }
+
+        function undoMove() {
+            if (gameState !== "level" && gameState !== "playtest") return;
+            if (historyStack.length === 0 || isLevelSolved) return;
+
+            const previousState = historyStack.pop();
+
+            activeGrid = previousState.grid;
+            playerPos = previousState.player;
+            visualBlocks = previousState.blocks;
+            remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
+            isLevelFailed = previousState.isLevelFailed || false;
+
+            updateMovesDisplay();
+
+            visualPlayer.targetX = playerPos.c;
+            visualPlayer.targetY = playerPos.r;
+
+            // Re-evaluate rules to catch "ran out of moves" condition
+            checkRules();
+
+            playSfx('step');
+        }
+
+        function resetCurrentLevel() {
+            if (gameState !== "level" && gameState !== "playtest") return;
+            if (isLevelSolved) return;
+
+            // Save current state for undo
+            saveStateToHistory();
+
+            if (gameState === "playtest" && editorCustomGrid) {
+                const gridData = editorCustomGrid.map(row => row.join(''));
+                const name = "Custom Level";
+                setupLevelFromGrid(gridData, name, "Your custom level. Good luck!", false, true);
+                gameState = "playtest";
+                document.getElementById('level-title-display').textContent = `PLAYTEST: ${name}`;
+                document.getElementById('btn-back').classList.add('hidden');
+                document.getElementById('btn-back-editor').classList.remove('hidden');
+                document.getElementById('btn-back-title').classList.remove('hidden');
+                document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+                document.getElementById('mobile-dpad-container').classList.remove('hidden');
+                document.getElementById('hud-coordinates').classList.remove('hidden');
+                if (levelHasMoveTiles) {
+                    document.getElementById('moves-counter').classList.remove('hidden');
+                    document.getElementById('moves-number').textContent = '∞';
+                } else {
+                    document.getElementById('moves-counter').classList.add('hidden');
+                }
+                document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+                scaleAndRenderCanvas();
+            } else {
+                loadLevel(activeLevelIndex, true);
+                remainingMoves = Infinity;
+                updateMovesDisplay();
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  NAVIGATION: EXIT TO OVERWORLD / TITLE
+        // ───────────────────────────────────────────────────────────────
+
+        function exitToOverworld() {
+            if (gameState === "playtest") {
+                exitPlaytestToEditor();
+                return;
+            }
+            const dir = levelEntryState.entryDirection;
+            lastExitedLevelIndex = activeLevelIndex;
+            lastExitTime = Date.now();
+
+            triggerCinematicTransition(dir, () => {
+                overworldPlayerPos = { ...levelEntryState.preEntryPosition };
+                visualOverworldPlayer.x = overworldPlayerPos.c;
+                visualOverworldPlayer.y = overworldPlayerPos.r;
+                visualOverworldPlayer.targetX = overworldPlayerPos.c;
+                visualOverworldPlayer.targetY = overworldPlayerPos.r;
+                loadOverworld();
+                buildLevelsSidebar();
+            });
+        }
+
+        function exitToOverworldFromMenu() {
+            hideSidebar();
+            if (gameState === "playtest") {
+                exitPlaytestToEditor();
+                return;
+            }
+            triggerCinematicTransition('up', () => {
+                loadOverworld();
+            });
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  OVERWORLD MOVEMENT
+        // ───────────────────────────────────────────────────────────────
 
         function moveOverworldPlayer(dir) {
             let dr = 0,
@@ -2467,491 +3261,51 @@
             }
         }
 
-        // ------------------------------------------------
-        // NEW SIMULATION ENGINE
-        // ------------------------------------------------
-        function simulateMove(dr, dc, curPlayer, curBlocks) {
-            // Deep clone state
-            let simPlayer = { r: curPlayer.r, c: curPlayer.c };
-            let simBlocks = curBlocks.map(b => ({
-                id: b.id,
-                char: b.char,
-                isTrapped: b.isTrapped,
-                tiles: b.tiles.map(t => ({ x: t.targetX, y: t.targetY }))
-            }));
+        // ───────────────────────────────────────────────────────────────
+        //  RESPAWN (overworld only)
+        // ───────────────────────────────────────────────────────────────
 
-            const rows = activeGrid.length;
-            const cols = getMaxColumns(activeGrid);
+        function resetOverworldPosition() {
+            if (gameState !== "overworld") return;
 
-            function getBlockAt(r, c) {
-                return simBlocks.find(b => b.tiles.some(t => t.x === c && t.y === r));
+            const targetX = 2,
+                targetY = 2;
+            const gridRows = overworldGrid.length;
+            const targetR = gridRows - 1 - targetY;
+            const targetC = targetX;
+
+            if (targetR < 0 || targetR >= gridRows || targetC < 0 || targetC >= overworldGrid[targetR].length) {
+                showBottomHudText("Invalid spawn position!", 1500);
+                return;
             }
-
-            function blockOnIce(block) {
-                return block.tiles.some(t => originalGrid[t.y]?.[t.x] === 'I');
-            }
-
-            function blockIsIceBox(block) { return isIceBox(block.char); }
-
-            function blockIsTransparent(block) { return isTransparentBox(block.char); }
-
-            function blockIsHeat(block) { return isHeatBox(block.char); }
-
-            function isWalkable(r, c, ignorePlayer = false) {
-                if (r < 0 || r >= rows || c < 0 || c >= (activeGrid[r] ? activeGrid[r].length : 0)) return false;
-                const orig = originalGrid[r]?.[c];
-                if (orig === '#') return false;
-                if (isDigit(orig)) return isYellowWallPassable(r, c);
-                if (!ignorePlayer && r === simPlayer.r && c === simPlayer.c) return false;
-                return true;
-            }
-
-            function canMoveSingleBlock(block, dirR, dirC) {
-                for (let tile of block.tiles) {
-                    let nr = tile.y + dirR;
-                    let nc = tile.x + dirC;
-                    if (!isWalkable(nr, nc, true)) return false;
-                    // Check for block collision
-                    const other = getBlockAt(nr, nc);
-                    if (other && other.id !== block.id) return false;
-                }
-                return true;
-            }
-
-            function moveSingleBlock(block, dirR, dirC) {
-                block.tiles.forEach(t => { t.x += dirC;
-                    t.y += dirR; });
-            }
-
-            // Transparent chain detection
-            function getTransparentChain(startBlockId, dirR, dirC) {
-                const chainIds = [startBlockId];
-                let toProcess = [startBlockId];
-                while (toProcess.length > 0) {
-                    let currentId = toProcess.shift();
-                    let current = simBlocks.find(b => b.id === currentId);
-                    let frontBlocks = new Set();
-                    for (let t of current.tiles) {
-                        let nr = t.y + dirR,
-                            nc = t.x + dirC;
-                        let b = getBlockAt(nr, nc);
-                        if (b && b.id !== current.id && blockIsTransparent(b) && !chainIds.includes(b.id)) {
-                            frontBlocks.add(b.id);
-                        }
-                    }
-                    for (let id of frontBlocks) {
-                        chainIds.push(id);
-                        toProcess.push(id);
-                    }
-                }
-                return chainIds;
-            }
-
-            function canMoveChain(chainIds, dirR, dirC) {
-                // Check all tiles of all blocks in chain for obstacles
-                for (let id of chainIds) {
-                    const block = simBlocks.find(b => b.id === id);
-                    for (let tile of block.tiles) {
-                        let nr = tile.y + dirR,
-                            nc = tile.x + dirC;
-                        if (!isWalkable(nr, nc, true)) return false;
-                        const other = getBlockAt(nr, nc);
-                        if (other && !chainIds.includes(other.id)) return false;
-                    }
-                }
-                return true;
-            }
-
-            function moveChain(chainIds, dirR, dirC) {
-                chainIds.forEach(id => {
-                    let block = simBlocks.find(b => b.id === id);
-                    moveSingleBlock(block, dirR, dirC);
-                });
-            }
-
-            // Initial push
-            let pr = simPlayer.r + dr;
-            let pc = simPlayer.c + dc;
-            if (!isWalkable(pr, pc)) return null;
-
-            let slidingGroups = []; // each: { ids: [blockId,...], dirR, dirC }
-
-            const blockInFront = getBlockAt(pr, pc);
-            if (blockInFront) {
-                if (blockIsTransparent(blockInFront)) {
-                    const chain = getTransparentChain(blockInFront.id, dr, dc);
-                    if (!canMoveChain(chain, dr, dc)) return null;
-                    moveChain(chain, dr, dc);
-                    simPlayer.r = pr;
-                    simPlayer.c = pc;
-                    // Determine if any in chain should slide (on ice or ice box)
-                    const anySlide = chain.some(id => {
-                        const b = simBlocks.find(bl => bl.id === id);
-                        return blockOnIce(b) || blockIsIceBox(b);
-                    });
-                    if (anySlide) {
-                        slidingGroups.push({ ids: chain, dirR: dr, dirC: dc });
-                    }
-                } else {
-                    // Non-transparent block (can be ice box or normal)
-                    if (!canMoveSingleBlock(blockInFront, dr, dc)) return null;
-                    moveSingleBlock(blockInFront, dr, dc);
-                    simPlayer.r = pr;
-                    simPlayer.c = pc;
-                    if (blockOnIce(blockInFront) || blockIsIceBox(blockInFront)) {
-                        slidingGroups.push({ ids: [blockInFront.id], dirR: dr, dirC: dc });
-                    }
-                }
-            } else {
-                simPlayer.r = pr;
-                simPlayer.c = pc;
-            }
-
-            // Now handle sliding (player and blocks)
-            let playerSliding = originalGrid[simPlayer.r]?.[simPlayer.c] === 'I';
-            let maxSlideSteps = 200;
-            let steps = 0;
-            let anyMovement = true;
-
-            while ((playerSliding || slidingGroups.length > 0) && anyMovement && steps < maxSlideSteps) {
-                anyMovement = false;
-                steps++;
-
-                // Sort sliding groups: farthest first along direction
-                slidingGroups.sort((a, b) => {
-                    const aBlock = simBlocks.find(bl => bl.id === a.ids[0]);
-                    const bBlock = simBlocks.find(bl => bl.id === b.ids[0]);
-                    if (dr !== 0) {
-                        const aY = aBlock.tiles[0].y,
-                            bY = bBlock.tiles[0].y;
-                        return dr > 0 ? bY - aY : aY - bY;
-                    } else {
-                        const aX = aBlock.tiles[0].x,
-                            bX = bBlock.tiles[0].x;
-                        return dc > 0 ? bX - aX : aX - bX;
-                    }
-                });
-
-                let newSlidingGroups = [];
-                for (let group of slidingGroups) {
-                    const canMove = group.ids.length === 1 ? canMoveSingleBlock(simBlocks.find(b => b.id === group.ids[0]),
-                        group.dirR, group.dirC) : canMoveChain(group.ids, group.dirR, group.dirC);
-                    if (canMove) {
-                        if (group.ids.length === 1) moveSingleBlock(simBlocks.find(b => b.id === group.ids[0]), group.dirR,
-                            group.dirC);
-                        else moveChain(group.ids, group.dirR, group.dirC);
-                        anyMovement = true;
-                        // Check if still sliding (on ice or ice box)
-                        let stillSlides = group.ids.some(id => {
-                            const b = simBlocks.find(bl => bl.id === id);
-                            return blockOnIce(b) || blockIsIceBox(b);
-                        });
-                        if (stillSlides) newSlidingGroups.push(group);
-                    }
-                }
-                slidingGroups = newSlidingGroups;
-
-                // Player slide
-                if (playerSliding) {
-                    let pr2 = simPlayer.r + dr;
-                    let pc2 = simPlayer.c + dc;
-                    if (isWalkable(pr2, pc2)) {
-                        const blockThere = getBlockAt(pr2, pc2);
-                        if (blockThere) {
-                            if (blockIsTransparent(blockThere)) {
-                                const chain = getTransparentChain(blockThere.id, dr, dc);
-                                if (canMoveChain(chain, dr, dc)) {
-                                    moveChain(chain, dr, dc);
-                                    simPlayer.r = pr2;
-                                    simPlayer.c = pc2;
-                                    const anySlide = chain.some(id => {
-                                        const b = simBlocks.find(bl => bl.id === id);
-                                        return blockOnIce(b) || blockIsIceBox(b);
-                                    });
-                                    if (anySlide) slidingGroups.push({ ids: chain, dirR: dr, dirC: dc });
-                                    anyMovement = true;
-                                    if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
-                                } else playerSliding = false;
-                            } else {
-                                if (canMoveSingleBlock(blockThere, dr, dc)) {
-                                    moveSingleBlock(blockThere, dr, dc);
-                                    simPlayer.r = pr2;
-                                    simPlayer.c = pc2;
-                                    if (blockOnIce(blockThere) || blockIsIceBox(blockThere)) {
-                                        slidingGroups.push({ ids: [blockThere.id], dirR: dr, dirC: dc });
-                                    }
-                                    anyMovement = true;
-                                    if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
-                                } else playerSliding = false;
-                            }
-                        } else {
-                            simPlayer.r = pr2;
-                            simPlayer.c = pc2;
-                            anyMovement = true;
-                            if (originalGrid[simPlayer.r]?.[simPlayer.c] !== 'I') playerSliding = false;
-                        }
-                    } else {
-                        playerSliding = false;
-                    }
-                }
-            }
-
-            return { player: simPlayer, blocks: simBlocks };
-        }
-
-        function movePlayer(dir) {
-            if (isLevelFailed || isLevelSolved) return;
-            let dr = 0,
-                dc = 0;
-            if (dir === 'up') { dr = -1;
-                visualPlayer.facing = 'up'; } else if (dir === 'down') { dr = 1;
-                visualPlayer.facing = 'down'; } else if (dir === 'left') { dc = -1;
-                visualPlayer.facing = 'left'; } else if (dir === 'right') { dc = 1;
-                visualPlayer.facing = 'right'; }
-
-            const simResult = simulateMove(dr, dc, playerPos, visualBlocks);
-            if (!simResult) return;
-
-            // Save state before applying
-            saveStateToHistory();
-
-            // Apply
-            playerPos = simResult.player;
-            visualPlayer.targetX = playerPos.c;
-            visualPlayer.targetY = playerPos.r;
-
-            visualBlocks.forEach((realBlock, idx) => {
-                const simB = simResult.blocks.find(sb => sb.id === realBlock.id);
-                if (!simB) return;
-                simB.tiles.forEach((tile, i) => {
-                    realBlock.tiles[i].targetX = tile.x;
-                    realBlock.tiles[i].targetY = tile.y;
-                });
-            });
-
-            // Rebuild activeGrid for rendering
-            for (let r = 0; r < activeGrid.length; r++)
-                for (let c = 0; c < activeGrid[r].length; c++)
-                    activeGrid[r][c] = getBaselineCell(r, c);
-            visualBlocks.forEach(block => {
-                block.tiles.forEach(tile => {
-                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
-                    const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
-                    activeGrid[tile.targetY][tile.targetX] = isGoal ? '*' : block.char;
-                });
-            });
-            activeGrid[playerPos.r][playerPos.c] = originalGrid[playerPos.r][playerPos.c] === '.' ? '+' : '@';
-
-            // Move limits
-            const finalCell = originalGrid[simResult.player.r]?.[simResult.player.c];
-            if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
-                const limit = MOVE_TILE_LIMITS[finalCell];
-                remainingMoves = (limit === 0) ? Infinity : limit;
-            } else if (remainingMoves !== Infinity) {
-                remainingMoves--;
-                if (remainingMoves <= 0) {
-                    updateMovesDisplay();
-                    checkRules();
-                    return;
-                }
-            }
-            updateMovesDisplay();
-
-            checkRules();
-        }
-
-        function updateMovesDisplay() {
-            const numberEl = document.getElementById('moves-number');
-            if (levelHasMoveTiles) {
-                numberEl.textContent = (remainingMoves === Infinity) ? '∞' : remainingMoves;
-            }
-        }
-
-        function checkHeatBoxContact() {
-            for (let block of visualBlocks) {
-                if (!isHeatBox(block.char)) continue;
-                for (let tile of block.tiles) {
-                    const tx = tile.targetX,
-                        ty = tile.targetY;
-                    const neighbours = [
-                        [ty - 1, tx],
-                        [ty + 1, tx],
-                        [ty, tx - 1],
-                        [ty, tx + 1]
-                    ];
-                    for (let [nr, nc] of neighbours) {
-                        if (nr < 0 || nr >= activeGrid.length || nc < 0 || nc >= activeGrid[nr].length) continue;
-                        const other = visualBlocks.find(b => b !== block && b.tiles.some(t => t.targetX === nc && t
-                        .targetY === nr));
-                        if (other) return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        function checkRules() {
-            // Trap check
-
-            let trapTriggered = false;
-            visualBlocks.forEach(block => {
-                let blockTrapped = false;
-                block.tiles.forEach(tile => {
-                    if (originalGrid[tile.targetY]?.[tile.targetX] === 'x') blockTrapped = true;
-                });
-                block.isTrapped = blockTrapped;
-                if (blockTrapped) trapTriggered = true;
-            });
-            if (trapTriggered) {
-                triggerFailureState();
+            if (overworldGrid[targetR][targetC] === '#') {
+                showBottomHudText("Spawn position blocked!", 1500);
                 return;
             }
 
-            // Player on yellow wall
-            const playerOrigCell = originalGrid[playerPos.r][playerPos.c];
-            if (isDigit(playerOrigCell)) {
-                const req = parseInt(playerOrigCell, 10);
-                if (getSatisfiedCount() !== req) {
-                    triggerFailureState();
-                    return;
-                }
-            }
+            overworldPlayerPos = { r: targetR, c: targetC };
+            visualOverworldPlayer.x = targetC;
+            visualOverworldPlayer.y = targetR;
+            visualOverworldPlayer.targetX = targetC;
+            visualOverworldPlayer.targetY = targetR;
+            overworldCamera.x = targetC;
+            overworldCamera.y = targetR;
 
-            // Box on yellow wall
-            let boxTrappedInWall = false;
-            visualBlocks.forEach(block => {
-                block.tiles.forEach(tile => {
-                    const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
-                    if (isDigit(cellOrig) && getSatisfiedCount() !== parseInt(cellOrig, 10)) {
-                        block.isTrapped = true;
-                        boxTrappedInWall = true;
-                    }
-                });
-            });
-            if (boxTrappedInWall) {
-                triggerFailureState();
-                return;
-            }
-
-            // Heat box contact
-            if (checkHeatBoxContact()) {
-                triggerFailureState();
-                return;
-            }
-
-            checkVictory();
-            if (remainingMoves <= 0 && levelHasMoveTiles) {
-                triggerFailureState();
-                return;
-            }
-        }
-
-        function getBaselineCell(r, c) {
-            const originalVal = originalGrid[r][c];
-            if (originalVal === '.' || originalVal === '*' || originalVal === '+') return '.';
-            if (originalVal === 'x') return 'x';
-            if (originalVal === 'I') return 'I';
-            if (isDigit(originalVal)) return originalVal;
-            return ' ';
-        }
-
-        function saveStateToHistory() {
-            historyStack.push({
-                grid: activeGrid.map(row => [...row]),
-                player: { ...playerPos },
-                blocks: visualBlocks.map(b => ({
-                    ...b,
-                    tiles: b.tiles.map(t => ({ ...t }))
-                })),
-                remainingMoves: remainingMoves
-            });
-            if (historyStack.length > 250) historyStack.shift();
-        }
-
-        function undoMove() {
-            if (gameState !== "level" || historyStack.length === 0 || isLevelSolved) return;
-            const previousState = historyStack.pop();
-
-            activeGrid = previousState.grid;
-            playerPos = previousState.player;
-            visualBlocks = previousState.blocks;
-            remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
-            updateMovesDisplay();
-
-            visualPlayer.targetX = playerPos.c;
-            visualPlayer.targetY = playerPos.r;
-
-            isLevelFailed = false;
+            localStorage.setItem('boxpush_overworld_pos', JSON.stringify(overworldPlayerPos));
             playSfx('step');
-        }
-
-        function resetCurrentLevel() {
-            if (gameState !== "level" || isLevelSolved) return;
-            saveStateToHistory();
-            loadLevel(activeLevelIndex, true);
-            remainingMoves = Infinity;
-            updateMovesDisplay();
-        }
-
-        function triggerFailureState() {
-            isLevelFailed = true;
-            playSfx('fail');
-        }
-
-        function checkVictory() {
-            if (isLevelFailed) return;
-
-            let totalGoals = 0;
-            for (let r = 0; r < originalGrid.length; r++) {
-                for (let c = 0; c < originalGrid[r].length; c++) {
-                    const cell = originalGrid[r][c];
-                    if (cell === '.' || cell === '*' || cell === '+') totalGoals++;
+            showBottomHudText("Teleported to spawn (2, 2)!", 2000);
+            hideBottomHudText();
+            setTimeout(() => {
+                const node = OVERWORLD.nodes["2,2"];
+                if (node && node.type === 'info') {
+                    showBottomHudText(node.text, 4000);
                 }
-            }
-
-            const totalBoxes = visualBlocks.reduce((acc, b) => acc + b.tiles.length, 0);
-            const satisfied = getSatisfiedCount();
-
-            const isWon = (satisfied === totalGoals && totalGoals > 0) || (satisfied === totalBoxes && totalBoxes > 0);
-
-            if (isWon && !isLevelFailed) {
-                isLevelSolved = true;
-                playSfx('win');
-
-                if (!LEVELS[activeLevelIndex].special) {
-                    completedLevels.add(activeLevelIndex);
-                    localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
-                    buildLevelsSidebar();
-                }
-
-                setTimeout(() => {
-                    exitToOverworld();
-                }, 800);
-            }
+            }, 300);
         }
 
-        function exitToOverworld() {
-            const dir = levelEntryState.entryDirection;
-            lastExitedLevelIndex = activeLevelIndex;
-            lastExitTime = Date.now();
-
-            triggerCinematicTransition(dir, () => {
-                overworldPlayerPos = { ...levelEntryState.preEntryPosition };
-                visualOverworldPlayer.x = overworldPlayerPos.c;
-                visualOverworldPlayer.y = overworldPlayerPos.r;
-                visualOverworldPlayer.targetX = overworldPlayerPos.c;
-                visualOverworldPlayer.targetY = overworldPlayerPos.r;
-                loadOverworld();
-                buildLevelsSidebar();
-            });
-        }
-
-        function exitToOverworldFromMenu() {
-            hideSidebar();
-            triggerCinematicTransition('up', () => {
-                loadOverworld();
-            });
-        }
+        // ───────────────────────────────────────────────────────────────
+        //  SIDEBAR
+        // ───────────────────────────────────────────────────────────────
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar-menu');
@@ -2970,10 +3324,6 @@
             document.getElementById('sidebar-menu').classList.add('-translate-x-full');
             document.getElementById('sidebar-backdrop').classList.add('hidden');
             cancelClearData();
-        }
-
-        function getNormalLevels() {
-            return LEVELS.filter(lvl => !lvl.special);
         }
 
         function buildLevelsSidebar() {
@@ -2998,7 +3348,7 @@
                     bgColor = idx % 2 === 0 ? "bg-white hover:bg-neutral-100 text-black" :
                         "bg-neutral-100 hover:bg-neutral-200 text-black";
                 }
-                if (gameState === "level" && idx === activeLevelIndex) {
+                if ((gameState === "level" || gameState === "playtest") && idx === activeLevelIndex) {
                     bgColor = "bg-black hover:bg-neutral-800 text-white";
                 }
 
@@ -3032,6 +3382,52 @@
             });
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  KEYBOARD & DIRECTIONAL INPUT
+        // ───────────────────────────────────────────────────────────────
+
+        function handleKeyDown(e) {
+            validateEditorGrid();
+            const isSidebarOpen = !document.getElementById('sidebar-menu').classList.contains('-translate-x-full');
+            if (isSidebarOpen) return;
+            
+            if (document.activeElement === document.getElementById('editor-textarea')) return;
+
+            let direction = '';
+            const key = e.key.toLowerCase();
+
+            if (key === 'arrowup' || key === 'w') direction = 'up';
+            if (key === 'arrowdown' || key === 's') direction = 'down';
+            if (key === 'arrowleft' || key === 'a') direction = 'left';
+            if (key === 'arrowright' || key === 'd') direction = 'right';
+
+            if (key === 'r' && (gameState === "level" || gameState === "playtest")) {
+                resetCurrentLevel();
+                e.preventDefault();
+            }
+            if ((key === 'z' || key === 'u') && (gameState === "level" || gameState === "playtest")) {
+                undoMove();
+                e.preventDefault();
+            }
+
+            if (direction) {
+                e.preventDefault();
+                handleDirectionalInput(direction);
+            }
+        }
+
+        function handleDirectionalInput(direction) {
+            if (gameState === "overworld") {
+                moveOverworldPlayer(direction);
+            } else if (gameState === "level" || gameState === "playtest") {
+                movePlayer(direction);
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  GAME LOOP
+        // ───────────────────────────────────────────────────────────────
+
         function gameTick() {
             updateTick();
             drawCanvas();
@@ -3057,7 +3453,7 @@
                 const cartesianX = Math.round(visualOverworldPlayer.x);
                 const cartesianY = overworldGrid.length - 1 - Math.round(visualOverworldPlayer.y);
                 document.getElementById('hud-coordinates').textContent = `[X: ${cartesianX}, Y: ${cartesianY}]`;
-            } else {
+            } else if (gameState === "level" || gameState === "playtest") {
                 let pDx = visualPlayer.targetX - visualPlayer.x;
                 let pDy = visualPlayer.targetY - visualPlayer.y;
                 let pStepX = pDx * LERP_SPEED;
@@ -3097,10 +3493,24 @@
             }
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  DRAWING
+        // ───────────────────────────────────────────────────────────────
+
         function drawCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (gameState === "overworld") drawOverworldMap();
-            else drawLevelMap();
+            else if (gameState === "level" || gameState === "playtest") drawLevelMap();
+            else {
+                // Fallback: draw a blank with some text
+                ctx.fillStyle = '#dcdcdc';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('BoxPush', canvas.width / 2, canvas.height / 2);
+            }
         }
 
         function drawOverworldMap() {
@@ -3133,7 +3543,6 @@
                 }
             }
 
-            // Draw internal grid lines
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize,
@@ -3154,7 +3563,6 @@
                 }
             }
 
-            // Draw outer border
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const x = c * tileSize,
@@ -3183,7 +3591,6 @@
                 }
             }
 
-            // Nodes
             for (let r = 0; r < gridRows; r++) {
                 for (let c = 0; c < gridCols; c++) {
                     const cartX = c,
@@ -3247,7 +3654,6 @@
                 }
             }
 
-            // Player
             const opX = visualOverworldPlayer.x * tileSize,
                 opY = visualOverworldPlayer.y * tileSize;
             const opMargin = tileSize * 0.14,
@@ -3418,13 +3824,11 @@
                 }
             }
 
-            // Draw blocks
             visualBlocks.forEach(block => {
                 const margin = tileSize * 0.08;
                 const innerMargin = Math.max(2.5, tileSize * 0.06);
                 const hasTile = (tx, ty) => block.tiles.some(t => t.targetX === tx && t.targetY === ty);
 
-                // First pass: fill tiles
                 block.tiles.forEach(tile => {
                     const tx = tile.targetX,
                         ty = tile.targetY;
@@ -3447,7 +3851,6 @@
 
                     const cellOrig = originalGrid[ty]?.[tx];
                     const isTileDocked = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
-                    // Determine heat contact for this tile (only if block is heat)
                     let heatContact = false;
                     if (isHeatBox(block.char)) {
                         const neighbours = [
@@ -3464,7 +3867,7 @@
                     }
 
                     if (block.isTrapped) ctx.fillStyle = '#ef4444';
-                    else if (heatContact) ctx.fillStyle = '#ef4444'; // red for contact
+                    else if (heatContact) ctx.fillStyle = '#ef4444';
                     else if (isTileDocked) ctx.fillStyle = '#22c55e';
                     else if (isTransparentBox(block.char)) ctx.fillStyle = 'rgba(128,128,128,0.5)';
                     else if (isIceBox(block.char)) ctx.fillStyle = '#737373';
@@ -3474,10 +3877,9 @@
                     ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
                 });
 
-                // Outline color
                 let outlineColor = '#000000';
-                if (isIceBox(block.char)) outlineColor = '#3b82f6'; // blue
-                else if (isHeatBox(block.char)) outlineColor = '#ef4444'; // red
+                if (isIceBox(block.char)) outlineColor = '#3b82f6';
+                else if (isHeatBox(block.char)) outlineColor = '#ef4444';
 
                 const drawOutline = (pad, strokeStyle, lineWidth) => {
                     ctx.strokeStyle = strokeStyle;
@@ -3538,7 +3940,6 @@
                 }
             });
 
-            // Player
             const pX = visualPlayer.x * tileSize,
                 pY = visualPlayer.y * tileSize;
             const pMargin = tileSize * 0.14,
@@ -3580,53 +3981,32 @@
             });
         }
 
-        // --------------------------------------------------------------
-        // RESPAWN / TELEPORT TO (2,2) – visible only on overworld
-        // --------------------------------------------------------------
-        function resetOverworldPosition() {
-            if (gameState !== "overworld") return;
+        // ───────────────────────────────────────────────────────────────
+        //  CREATE EXPLOSION (for particles)
+        // ───────────────────────────────────────────────────────────────
 
-            // Target: node (2,2) in overworld coordinates → grid position
-            const targetX = 2,
-                targetY = 2;
-            const gridRows = overworldGrid.length;
-            const targetR = gridRows - 1 - targetY;
-            const targetC = targetX;
-
-            // Validate the target cell is walkable
-            if (targetR < 0 || targetR >= gridRows || targetC < 0 || targetC >= overworldGrid[targetR].length) {
-                showBottomHudText("Invalid spawn position!", 1500);
-                return;
+        function createExplosion(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.05 + Math.random() * 0.12;
+                particles.push({
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 3 + Math.random() * 5,
+                    color: color,
+                    alpha: 1.0,
+                    decay: 0.03 + Math.random() * 0.04
+                });
             }
-            if (overworldGrid[targetR][targetC] === '#') {
-                showBottomHudText("Spawn position blocked!", 1500);
-                return;
-            }
-
-            // Teleport the player
-            overworldPlayerPos = { r: targetR, c: targetC };
-            visualOverworldPlayer.x = targetC;
-            visualOverworldPlayer.y = targetR;
-            visualOverworldPlayer.targetX = targetC;
-            visualOverworldPlayer.targetY = targetR;
-            overworldCamera.x = targetC;
-            overworldCamera.y = targetR;
-
-            localStorage.setItem('boxpush_overworld_pos', JSON.stringify(overworldPlayerPos));
-            playSfx('step');
-            showBottomHudText("Teleported to spawn (2, 2)!", 2000);
-
-            // Hide any lingering info text from the previous location
-            // The overworld will re-check the node when the player moves, but we clear it here.
-            hideBottomHudText();
-            // Re-show the spawn node's info text after a short delay
-            setTimeout(() => {
-                const node = OVERWORLD.nodes["2,2"];
-                if (node && node.type === 'info') {
-                    showBottomHudText(node.text, 4000);
-                }
-            }, 300);
         }
+
+        // ───────────────────────────────────────────────────────────────
+        //  BOOT
+        // ───────────────────────────────────────────────────────────────
+
+        console.log("BoxPush v3.0 — Custom Level Editor + bugfixes");
     </script>
 </body>
 </html>
