@@ -2977,11 +2977,6 @@
         }
 
         function checkRules() {
-            // ---- RUN OUT OF MOVES CHECK FIRST ----
-            if (remainingMoves <= 0 && levelHasMoveTiles) {
-                triggerFailureState();
-                return;
-            }
 
             // Trap check
             let trapTriggered = false;
@@ -3032,6 +3027,11 @@
 
             // Victory
             checkVictory();
+            
+            // ---- RUN OUT OF MOVES CHECK ----
+            if (!isLevelSolved && remainingMoves <= 0 && levelHasMoveTiles) {
+                triggerFailureState();
+            }
         }
 
         function checkVictory() {
