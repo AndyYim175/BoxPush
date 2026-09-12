@@ -7,6 +7,12 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com">
     </script>
+    <!-- Firebase App (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js">
+    </script>
+    <!-- Firebase Database (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js">
+    </script>
     <!-- Google Fonts: Inter & Material Symbols Outlined -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
@@ -40,6 +46,8 @@
             outline: none;
             border-color: #000;
         }
+
+
         .editor-status-ok {
             color: #16a34a;
         }
@@ -101,13 +109,17 @@
         0/20
     </div>
 
-    <!-- Floating Action Group (right side) – only Undo & Reset now -->
+    <!-- Floating Action Group (right side) – Undo, Reset, Steps, Leaderboard -->
     <div id="level-controls-group" class="fixed top-6 right-6 z-40 flex items-center space-x-2 transition-opacity duration-300">
         <button onclick="undoMove()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Undo (Z or U)">
             <span class="material-symbols-outlined select-none text-xl leading-none">undo</span>
         </button>
         <button onclick="resetCurrentLevel()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100" title="Reset (R)">
             <span class="material-symbols-outlined select-none text-xl leading-none">replay</span>
+        </button>
+        <!-- Steps Counter (moved below D-pad) -->
+        <button id="btn-leaderboard-level" onclick="openLeaderboardManual()" class="h-11 w-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-all duration-150 rounded-none flex items-center justify-center active:bg-neutral-100 hidden" title="Leaderboard">
+            <span class="material-symbols-outlined select-none text-xl leading-none">leaderboard</span>
         </button>
     </div>
 
@@ -159,7 +171,10 @@
             </div>
         </div>
 
-        <div class="p-4 border-t border-black bg-neutral-50">
+        <div class="p-4 border-t border-black bg-neutral-50 space-y-2">
+            <button onclick="editNickname()" class="w-full py-2.5 border border-black bg-white hover:bg-neutral-100 text-black transition-colors font-black text-[10px] tracking-widest uppercase rounded-none">
+                EDIT NICKNAME
+            </button>
             <div id="clear-normal-view" class="block">
                 <button onclick="showClearConfirm()" class="w-full py-2.5 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors font-black text-[10px] tracking-widest uppercase rounded-none">
                     CLEAR SAVE DATA
@@ -197,6 +212,11 @@
         <button onclick="changeZoom(-0.2)" class="w-11 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white flex items-center justify-center font-bold text-xl rounded-none active:bg-neutral-100" title="Zoom Out">
             <span class="material-symbols-outlined select-none text-xl">zoom_out</span>
         </button>
+    </div>
+
+    <!-- Steps label above mobile D-pad -->
+    <div id="steps-label" class="fixed bottom-[140px] left-6 z-30 hidden select-none pointer-events-none">
+        <span class="font-black text-xs tracking-widest text-black/70">STEPS: <span id="steps-number-plain">0</span></span>
     </div>
 
     <!-- Mobile D-Pad -->
@@ -334,10 +354,292 @@
         </div>
     </div>
 
+    <!-- Leaderboard Overlay -->
+    <div id="leaderboard-overlay" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black/50 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-2 border-black w-full max-w-md max-h-[80vh] flex flex-col rounded-none shadow-xl">
+            <div class="bg-black text-white px-5 py-3 flex items-center justify-between shrink-0 rounded-none">
+                <h3 id="leaderboard-title" class="font-black text-[10px] tracking-widest uppercase truncate pr-2">LEADERBOARD</h3>
+                <button onclick="closeLeaderboardOnly()" class="w-7 h-7 border border-white/40 flex items-center justify-center hover:bg-white hover:text-black transition-colors font-bold text-[10px] rounded-none">
+                    X
+                </button>
+            </div>
+            <div id="leaderboard-list" class="flex-1 overflow-y-auto p-3 space-y-0">
+                <div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>
+            </div>
+            
+            <div class="p-3 border-t border-black flex justify-between text-[9px] font-black tracking-widest uppercase text-neutral-400 shrink-0">
+                <span>Top 50 per level</span>
+                <span>Steps</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nickname Modal -->
+    <div id="nickname-modal" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden">
+        <div class="bg-white border border-black p-6 max-w-sm w-full text-center relative rounded-none">
+            <h2 class="font-black text-sm tracking-widest uppercase text-black mb-2">SET NICKNAME</h2>
+            <p class="text-[10px] font-bold text-neutral-500 mb-4">4–20 letters, numbers, _ or -.</p>
+            <input id="nickname-input" type="text" maxlength="20" class="w-full border border-black px-3 py-2.5 text-sm font-bold tracking-wider text-center rounded-none focus:outline-none focus:ring-2 focus:ring-black" placeholder="Your name" autocomplete="off">
+            <p id="nickname-error" class="text-[10px] font-black text-red-600 mt-1 hidden"></p>
+            <button id="nickname-submit" class="mt-4 w-full py-3 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
+                SAVE & CONTINUE
+            </button>
+        </div>
+    </div>
+
     <script>
         // ───────────────────────────────────────────────────────────────
         //  CORE CONSTANTS & HELPERS
         // ───────────────────────────────────────────────────────────────
+
+        // ───────────────────────────────────────────────────────────────
+        //  FIREBASE INIT
+        // ───────────────────────────────────────────────────────────────
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCJffJxNVYDUWBSJGweXGH9u7ZljgFwKW0",
+            authDomain: "boxpush-api.firebaseapp.com",
+            databaseURL: "https://boxpush-api-default-rtdb.firebaseio.com",
+            projectId: "boxpush-api",
+            storageBucket: "boxpush-api.firebasestorage.app",
+            messagingSenderId: "985736571550",
+            appId: "1:985736571550:web:c5fadc8e50345d05823f84",
+            measurementId: "G-H2H9WR22V1"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const FIREBASE_DB = firebase.database();
+
+        // Max entries per level leaderboard
+        const LEADERBOARD_MAX = 50;
+        let _leaderboardShouldExit = false; // set true when opened after a win
+
+        // Get or prompt for nickname
+        function getPlayerNickname() {
+            const nick = localStorage.getItem('boxpush_nickname');
+            if (nick) return nick;
+            return null;
+        }
+
+        function setPlayerNickname(nick) {
+            localStorage.setItem('boxpush_nickname', nick);
+        }
+
+        function closeLeaderboardOnly() {
+            document.getElementById('leaderboard-overlay').classList.add('hidden');
+            if (_leaderboardShouldExit) {
+                _leaderboardShouldExit = false;
+                // Exit the level
+                if (gameState === "playtest") {
+                    exitPlaytestToEditor();
+                } else if (gameState === "level") {
+                    exitToOverworld();
+                }
+            }
+        }
+
+        function closeLeaderboardAndExit() {
+            document.getElementById('leaderboard-overlay').classList.add('hidden');
+            // Exit to overworld if in a regular level
+            if (gameState === "level") {
+                exitToOverworld();
+            } else if (gameState === "playtest") {
+                exitPlaytestToEditor();
+            }
+        }
+
+        function checkNicknameAvailable(nickname, callback) {
+            // Check usernames node in Firebase
+            const ref = FIREBASE_DB.ref('usernames/' + nickname.replace(/[.#$\[\]]/g, '_'));
+            ref.once('value').then(snapshot => {
+                if (snapshot.exists()) {
+                    callback(false);
+                } else {
+                    callback(true);
+                }
+            }).catch(err => {
+                console.warn('Firebase error (check nickname):', err);
+                // If Firebase fails, allow the name
+                callback(true);
+            });
+        }
+
+        function claimNicknameInDb(nickname, oldNickname, callback) {
+            const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
+            const ref = FIREBASE_DB.ref('usernames/' + safeKey);
+            ref.set({ timestamp: Date.now() }).then(() => {
+                // If there was an old nickname, free it
+                if (oldNickname) {
+                    const oldKey = oldNickname.replace(/[.#$\[\]]/g, '_');
+                    FIREBASE_DB.ref('usernames/' + oldKey).remove().catch(() => {});
+                }
+                if (callback) callback();
+            }).catch(err => {
+                console.warn('Firebase error (claim):', err);
+                if (callback) callback();
+            });
+        }
+
+        function askForNickname(callback) {
+            const modal = document.getElementById('nickname-modal');
+            const input = document.getElementById('nickname-input');
+            const error = document.getElementById('nickname-error');
+            input.value = '';
+            error.classList.add('hidden');
+            modal.classList.remove('hidden');
+            input.focus();
+
+            // Remove old listener, add new
+            const btn = document.getElementById('nickname-submit');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            newBtn.addEventListener('click', () => {
+                const val = input.value.trim();
+                if (!val) { error.textContent = 'Nickname is required.';
+                    error.classList.remove('hidden'); return; }
+                if (val.length < 4 || val.length > 20) { error.textContent = 'Must be 4–20 characters.';
+                    error.classList.remove('hidden'); return; }
+                if (!/^[a-zA-Z0-9_-]+$/.test(val)) { error.textContent = 'Only letters, numbers, _, - allowed.';
+                    error.classList.remove('hidden'); return; }
+                // Check availability in DB first
+                checkNicknameAvailable(val, (available) => {
+                    if (!available) {
+                        error.textContent = 'Name "' + val + '" is already taken!';
+                        error.classList.remove('hidden');
+                        return;
+                    }
+                    claimNicknameInDb(val, null, () => {
+                        setPlayerNickname(val);
+                        modal.classList.add('hidden');
+                        if (callback) callback(val);
+                    });
+                });
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') newBtn.click();
+            });
+        }
+
+        function submitScore(levelIndex, steps, callback) {
+            const nickname = getPlayerNickname();
+            if (!nickname) { if (callback) callback(null); return; }
+
+            const ref = FIREBASE_DB.ref(`leaderboards/level_${levelIndex}`);
+            ref.once('value').then(snapshot => {
+                const data = snapshot.val() || [];
+                const entries = Object.values(data);
+
+                // Check if player already has an entry
+                const existingIdx = entries.findIndex(e => e.nickname === nickname);
+                if (existingIdx !== -1) {
+                    const existing = entries[existingIdx];
+                    if (steps < existing.steps) {
+                        // Better score – update
+                        const key = Object.keys(data)[existingIdx];
+                        ref.child(key).update({ steps: steps, timestamp: Date.now() });
+                    }
+                    if (callback) callback(null);
+                    return;
+                }
+
+                // New entry
+                const newEntry = {
+                    nickname: nickname,
+                    steps: steps,
+                    timestamp: Date.now()
+                };
+
+                // Push, then trim to LEADERBOARD_MAX
+                const newRef = ref.push();
+                newRef.set(newEntry).then(() => {
+                    ref.once('value').then(snap2 => {
+                        const allData = snap2.val() || {};
+                        const allKeys = Object.keys(allData);
+                        if (allKeys.length > LEADERBOARD_MAX) {
+                            // Sort by steps asc, then timestamp asc, keep only top 50
+                            const sorted = allKeys.map(k => ({ key: k, ...allData[
+                                k] }))
+                                .sort((a, b) => a.steps - b.steps || a.timestamp - b
+                                .timestamp);
+                            const toRemove = sorted.slice(LEADERBOARD_MAX);
+                            const removals = toRemove.map(entry => ref.child(entry.key)
+                            .remove());
+                            Promise.all(removals).then(() => {
+                                if (callback) callback(newEntry);
+                            });
+                        } else {
+                            if (callback) callback(newEntry);
+                        }
+                    });
+                });
+            }).catch(err => {
+                console.warn('Firebase error (submit):', err);
+                if (callback) callback(null);
+            });
+        }
+
+        function fetchLeaderboard(levelIndex, callback) {
+            const ref = FIREBASE_DB.ref(`leaderboards/level_${levelIndex}`);
+            ref.once('value').then(snapshot => {
+                const data = snapshot.val() || {};
+                const entries = Object.values(data)
+                    .sort((a, b) => a.steps - b.steps || a.timestamp - b.timestamp)
+                    .slice(0, LEADERBOARD_MAX);
+                callback(entries);
+            }).catch(err => {
+                console.warn('Firebase error (fetch):', err);
+                callback([]);
+            });
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  LEADERBOARD UI
+        // ───────────────────────────────────────────────────────────────
+
+        function openLeaderboardManual() {
+            _leaderboardShouldExit = false;
+            showLeaderboard(activeLevelIndex);
+        }
+
+        function showLeaderboard(levelIndex) {
+            const overlay = document.getElementById('leaderboard-overlay');
+            const listEl = document.getElementById('leaderboard-list');
+            const titleEl = document.getElementById('leaderboard-title');
+            const levelName = LEVELS[levelIndex] ? LEVELS[levelIndex].name : `Level ${levelIndex+1}`;
+            titleEl.textContent = `LEADERBOARD — LEVEL ${levelIndex+1}: ${levelName}`;
+            listEl.innerHTML = `<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>`;
+            overlay.classList.remove('hidden');
+
+            fetchLeaderboard(levelIndex, (entries) => {
+                if (entries.length === 0) {
+                    listEl.innerHTML =
+                        `<div class="text-xs font-bold text-neutral-400 py-4 text-center">No scores yet. Be the first!</div>`;
+                    return;
+                }
+                let html = '';
+                entries.forEach((entry, idx) => {
+                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx+1}.`;
+                    const yourEntry = entry.nickname === getPlayerNickname();
+                    html += `<div class="flex items-center justify-between py-2 px-3 text-xs font-bold border-b border-neutral-100 ${yourEntry ? 'bg-yellow-50' : ''}">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <span class="w-6 text-center text-neutral-500 font-mono">${medal}</span>
+                                    <span class="truncate ${yourEntry ? 'text-black' : 'text-neutral-700'}">${escapeHtml(entry.nickname)}</span>
+                                    ${yourEntry ? '<span class="text-[9px] text-amber-600 font-black tracking-widest ml-1">(YOU)</span>' : ''}
+                                </div>
+                                <span class="font-mono font-black">${entry.steps}</span>
+                            </div>`;
+                });
+                listEl.innerHTML = html;
+            });
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
         const ENTRANCE_MODE = 1;
         const LERP_SPEED = 0.22;
@@ -1672,7 +1974,13 @@
 
         let remainingMoves = Infinity;
         let levelHasMoveTiles = false;
-        let overworldEntrancePos = { r: 1, c: 2 };
+let overworldEntrancePos = { r: 1, c: 2 };
+
+// Steps counter for leaderboard
+let currentSteps = 0;
+
+        // Track steps at last state save for undo
+        let savedStepsForUndo = 0;
 
         // Editor state
         let editorCustomGrid = null;
@@ -1853,6 +2161,7 @@
             document.getElementById('level-title-display').classList.add('hidden');
             document.getElementById('overworld-stats').classList.add('hidden');
             document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('btn-leaderboard-level').classList.add('hidden');
             document.getElementById('zoom-controls').classList.add('hidden');
             document.getElementById('mobile-dpad-container').classList.add('hidden');
             document.getElementById('hud-coordinates').classList.add('hidden');
@@ -1990,6 +2299,7 @@
             gameState = "overworld";
             document.getElementById('level-title-display').textContent = "OVERWORLD MAP";
             document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('btn-leaderboard-level').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
             document.getElementById('btn-back-editor').classList.add('hidden');
             document.getElementById('btn-respawn').classList.remove('hidden');
@@ -2008,9 +2318,10 @@
             document.getElementById('zoom-controls').classList.remove('hidden');
 
             hideBottomHudText();
+            updateStepsDisplay();
             scaleAndRenderCanvas();
         }
-
+        
         // ───────────────────────────────────────────────────────────────
         //  LEVEL LOADING (shared between regular and custom)
         // ───────────────────────────────────────────────────────────────
@@ -2061,6 +2372,10 @@
             activeGrid = gridData.map(row => row.split(''));
             originalGrid = gridData.map(row => row.split(''));
 
+            currentSteps = 0;
+            updateStepsDisplay();
+            // Also update the plain steps label on initial load
+
             levelHasMoveTiles = false;
             for (let r = 0; r < originalGrid.length; r++) {
                 for (let c = 0; c < originalGrid[r].length; c++) {
@@ -2093,6 +2408,7 @@
             topTitleText.textContent = `LEVEL ${activeLevelIndex + 1}: ${displayName}`;
 
             document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('btn-leaderboard-level').classList.remove('hidden');
 
             const hintTitle = document.getElementById('hints-level-title');
             const hintDesc = document.getElementById('hints-level-desc');
@@ -2899,7 +3215,11 @@
             const simResult = simulateMove(dr, dc, playerPos, visualBlocks);
             if (!simResult) return;
 
+            // Save state BEFORE incrementing steps, so undo restores the old step count
             saveStateToHistory();
+
+            currentSteps++;
+            updateStepsDisplay();
 
             playerPos = simResult.player;
             visualPlayer.targetX = playerPos.c;
@@ -2947,6 +3267,75 @@
             if (levelHasMoveTiles) {
                 numberEl.textContent = (remainingMoves === Infinity) ? '∞' : remainingMoves;
             }
+        }
+
+        function updateStepsDisplay() {
+            const stepsEl = document.getElementById('steps-label');
+            const numberEl = document.getElementById('steps-number-plain');
+            if (gameState === "level" || gameState === "playtest") {
+                stepsEl.classList.remove('hidden');
+                numberEl.textContent = currentSteps;
+                
+            } else {
+                stepsEl.classList.add('hidden');
+                document.getElementById('moves-counter').classList.add('hidden');
+            }
+        }
+
+        function editNickname() {
+            hideSidebar();
+            const oldName = getPlayerNickname();
+            // Custom version of askForNickname for renaming
+            const modal = document.getElementById('nickname-modal');
+            const input = document.getElementById('nickname-input');
+            const error = document.getElementById('nickname-error');
+            input.value = oldName || '';
+            error.classList.add('hidden');
+            // Update title
+            const title = modal.querySelector('h2');
+            const origTitle = title.textContent;
+            title.textContent = 'RENAME NICKNAME';
+            modal.classList.remove('hidden');
+            input.focus();
+
+            const btn = document.getElementById('nickname-submit');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            newBtn.addEventListener('click', () => {
+                const val = input.value.trim();
+                if (!val) { error.textContent = 'Nickname is required.';
+                    error.classList.remove('hidden'); return; }
+                if (val.length < 4 || val.length > 20) { error.textContent = 'Must be 4–20 characters.';
+                    error.classList.remove('hidden'); return; }
+                if (!/^[a-zA-Z0-9_-]+$/.test(val)) { error.textContent = 'Only letters, numbers, _, - allowed.';
+                    error.classList.remove('hidden'); return; }
+                if (val === oldName) {
+                    // Same name, just close
+                    modal.classList.add('hidden');
+                    title.textContent = origTitle;
+                    showBottomHudText('Name unchanged.', 1500);
+                    return;
+                }
+                checkNicknameAvailable(val, (available) => {
+                    if (!available) {
+                        error.textContent = 'Name "' + val + '" is already taken!';
+                        error.classList.remove('hidden');
+                        return;
+                    }
+                    claimNicknameInDb(val, oldName, () => {
+                        setPlayerNickname(val);
+                        modal.classList.add('hidden');
+                        title.textContent = origTitle;
+                        showBottomHudText('Renamed to ' + val + '!', 2000);
+                        buildLevelsSidebar();
+                    });
+                });
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') newBtn.click();
+            });
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -3055,19 +3444,35 @@
                 playSfx('win');
 
                 // Only mark as completed if not a custom playtest
-                if (gameState !== "playtest" && !LEVELS[activeLevelIndex]?.special) {
+                const isNormalLevel = gameState !== "playtest" && LEVELS[activeLevelIndex] && !LEVELS[activeLevelIndex].special;
+                if (isNormalLevel) {
                     completedLevels.add(activeLevelIndex);
                     localStorage.setItem('boxpush_completed_levels', JSON.stringify(Array.from(completedLevels)));
                     buildLevelsSidebar();
                 }
 
-                setTimeout(() => {
-                    if (gameState === "playtest") {
-                        exitPlaytestToEditor();
+                // Leaderboard: submit score (only for regular levels, not playtest)
+                if (isNormalLevel) {
+                    const nickname = getPlayerNickname();
+                    if (!nickname) {
+                        // First time – ask for nickname, then submit and show leaderboard
+                        askForNickname((nick) => {
+                            submitScore(activeLevelIndex, currentSteps, () => {
+                                _leaderboardShouldExit = true;
+                                showLeaderboard(activeLevelIndex);
+                            });
+                        });
                     } else {
-                        exitToOverworld();
+                        submitScore(activeLevelIndex, currentSteps, () => {
+                            _leaderboardShouldExit = true;
+                            showLeaderboard(activeLevelIndex);
+                        });
                     }
-                }, 800);
+                } else if (gameState === "playtest") {
+                    // For playtest, just show leaderboard directly (no Firebase submit needed for custom)
+                    _leaderboardShouldExit = true;
+                    showLeaderboard(activeLevelIndex);
+                }
             }
         }
 
@@ -3089,7 +3494,8 @@
                     tiles: b.tiles.map(t => ({ ...t }))
                 })),
                 remainingMoves: remainingMoves,
-                isLevelFailed: isLevelFailed
+                isLevelFailed: isLevelFailed,
+                steps: currentSteps
             });
             if (historyStack.length > 250) historyStack.shift();
         }
@@ -3106,7 +3512,11 @@
             remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
             isLevelFailed = previousState.isLevelFailed || false;
 
+            // Restore steps count from history – this is the step count BEFORE the move was made
+            currentSteps = (previousState.steps !== undefined) ? previousState.steps : 0;
+
             updateMovesDisplay();
+            updateStepsDisplay();
 
             visualPlayer.targetX = playerPos.c;
             visualPlayer.targetY = playerPos.r;
@@ -3121,8 +3531,11 @@
             if (gameState !== "level" && gameState !== "playtest") return;
             if (isLevelSolved) return;
 
-            // Save current state for undo
+            // Save current state for undo (with steps count as it is now)
             saveStateToHistory();
+
+            currentSteps = 0;
+            updateStepsDisplay();
 
             if (gameState === "playtest" && editorCustomGrid) {
                 const gridData = editorCustomGrid.map(row => row.join(''));
@@ -3387,11 +3800,17 @@
         // ───────────────────────────────────────────────────────────────
 
         function handleKeyDown(e) {
-            validateEditorGrid();
+            // Don't intercept keys when typing in any input
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+            // Also skip if the nickname modal is open
+            if (!document.getElementById('nickname-modal').classList.contains('hidden')) return;
+            // skip if sidebar open
             const isSidebarOpen = !document.getElementById('sidebar-menu').classList.contains('-translate-x-full');
             if (isSidebarOpen) return;
             
             if (document.activeElement === document.getElementById('editor-textarea')) return;
+            // Block game inputs when nickname modal is visible
+            if (!document.getElementById('nickname-modal').classList.contains('hidden')) return;
 
             let direction = '';
             const key = e.key.toLowerCase();
@@ -4006,7 +4425,7 @@
         //  BOOT
         // ───────────────────────────────────────────────────────────────
 
-        console.log("BoxPush v3.0 — Custom Level Editor + bugfixes");
+        console.log("BoxPush v3.0 — Custom Level Editor + bugfixes with leaderboard");
     </script>
 </body>
 </html>
