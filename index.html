@@ -1855,6 +1855,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         // Also patch the console to hide these functions if someone tries to log them
         (function _sealPermanently() {
             const protect = [
+                '_remainingMoves', 'currentSteps', 'isLevelSolved', 'isLevelFailed',
                 'submitScore', 'claimNicknameInDb', 'checkNicknameAvailable',
                 'transferLeaderboardEntries',
                 'switchEditorTab', 'refreshCommunityLevels', 'filterCommunityLevels',
@@ -1895,6 +1896,11 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                         } catch(e) {}
                     }
                 });
+                // Remove move-tile related globals so console can't touch them
+                try { delete window._remainingMoves; } catch(e) {}
+                try { delete window.currentSteps; } catch(e) {}
+                try { delete window.isLevelSolved; } catch(e) {}
+                try { delete window.isLevelFailed; } catch(e) {}
                 try { Object.freeze(FIREBASE_DB); } catch(e) {}
             }
 
@@ -3248,8 +3254,8 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         let visualPlayer = { x: 0, y: 0, targetX: 0, targetY: 0, blinkTimer: 0, blinkState: false, facing: 'right' };
         let visualBlocks = [];
 
-        let remainingMoves = Infinity;
-        let levelHasMoveTiles = false;
+        let _remainingMoves = Infinity;        // PRIVATE – DO NOT TOUCH. Sealed by anti-cheat.
+let levelHasMoveTiles = false;
 let overworldEntrancePos = { r: 1, c: 2 };
 
 // Steps counter for leaderboard
@@ -3665,7 +3671,7 @@ let currentSteps = 0;
                 }
                 if (levelHasMoveTiles) break;
             }
-            remainingMoves = Infinity;
+            _remainingMoves = Infinity;
             const movesCounter = document.getElementById('moves-counter');
             const movesNumber = document.getElementById('moves-number');
             if (levelHasMoveTiles) {
@@ -4584,6 +4590,7 @@ let currentSteps = 0;
 
         function movePlayer(dir) {
             if (isLevelFailed || isLevelSolved) return;
+            if (levelHasMoveTiles && _remainingMoves <= 0) return;
             let dr = 0,
                 dc = 0;
             if (dir === 'up') { dr = -1;
@@ -4629,11 +4636,12 @@ let currentSteps = 0;
             const finalCell = originalGrid[simResult.player.r]?.[simResult.player.c];
             if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
                 const limit = MOVE_TILE_LIMITS[finalCell];
-                remainingMoves = (limit === 0) ? Infinity : limit;
-            } else if (remainingMoves !== Infinity) {
-                remainingMoves--;
-                if (remainingMoves <= 0) {
+                _remainingMoves = (limit === 0) ? Infinity : limit;
+            } else if (_remainingMoves !== Infinity) {
+                _remainingMoves--;
+                if (_remainingMoves <= 0) {
                     updateMovesDisplay();
+                    isLevelFailed = true;
                     checkRules();
                     return;
                 }
@@ -4645,7 +4653,7 @@ let currentSteps = 0;
         function updateMovesDisplay() {
             const numberEl = document.getElementById('moves-number');
             if (levelHasMoveTiles) {
-                numberEl.textContent = (remainingMoves === Infinity) ? '∞' : remainingMoves;
+                numberEl.textContent = (_remainingMoves === Infinity) ? '∞' : _remainingMoves;
             }
         }
 
@@ -4805,7 +4813,7 @@ let currentSteps = 0;
             checkVictory();
             
             // ---- RUN OUT OF MOVES CHECK ----
-            if (!isLevelSolved && remainingMoves <= 0 && levelHasMoveTiles) {
+            if (!isLevelSolved && _remainingMoves <= 0 && levelHasMoveTiles) {
                 triggerFailureState();
             }
         }
@@ -4910,7 +4918,7 @@ let currentSteps = 0;
                     ...b,
                     tiles: b.tiles.map(t => ({ ...t }))
                 })),
-                remainingMoves: remainingMoves,
+                remainingMoves: _remainingMoves,
                 isLevelFailed: isLevelFailed,
                 steps: currentSteps
             });
@@ -4926,8 +4934,8 @@ let currentSteps = 0;
             activeGrid = previousState.grid;
             playerPos = previousState.player;
             visualBlocks = previousState.blocks;
-            remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
             isLevelFailed = previousState.isLevelFailed || false;
+            _remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
 
             // Restore steps count from history – this is the step count BEFORE the move was made
             currentSteps = (previousState.steps !== undefined) ? previousState.steps : 0;
@@ -4999,7 +5007,7 @@ let currentSteps = 0;
                 scaleAndRenderCanvas();
             } else {
                 loadLevel(activeLevelIndex, true);
-                remainingMoves = Infinity;
+                _remainingMoves = Infinity;
                 updateMovesDisplay();
             }
         }
