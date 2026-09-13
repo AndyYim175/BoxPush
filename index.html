@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en" class="h-full select-none">
 <head>
     <meta charset="UTF-8">
@@ -914,7 +914,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         // ── COMMUNITY LEVELS SYSTEM (integrated in editor) ──
 
         // We store metadata only (no grid) for the browse list; grid loaded lazily on play.
-        let _communityLevelsMeta = [];      // { id, name, author, likes, createdAt, playCount } – no grid data
+        // likesCount is now a separate numeric field, not derived from the full likes map.
+        // The full likes map (per-user) is only fetched when the user clicks the like button.
+        let _communityLevelsMeta = [];      // { id, name, author, likesCount, createdAt, playCount } – no grid data
         let _communityGridCache = {};       // id -> grid array (loaded on demand)
 
         function switchEditorTab(tab) {
@@ -1010,6 +1012,14 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 closePublishModal();
                 return;
             }
+            // Grid size check (doubled up for safety)
+            const rows = result.grid.length;
+            const cols = getMaxColumns(result.grid);
+            if (rows > 20 || cols > 20) {
+                document.getElementById('editor-status').innerHTML = '<div class="editor-status-error">Grid too large! Max 20×20.</div>';
+                closePublishModal();
+                return;
+            }
             const nickname = getPlayerNickname();
             if (!nickname) {
                 document.getElementById('editor-status').innerHTML = '<div class="editor-status-info">Please set a nickname first (Menu > Edit Nickname).</div>';
@@ -1027,6 +1037,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 author: nickname,
                 createdAt: Date.now(),
                 likes: {},          // map of player_id -> true for unique likes
+                likesCount: 0,      // numeric counter – this is what the browse list reads (NOT the full map)
                 playCount: 0,
                 playHistory: {},      // map of player_id -> true (unique play counting)
                 comments: {},         // map of pushId -> { author, text, completed, upvotes: {}, downvotes: {}, createdAt }
@@ -1051,23 +1062,27 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 const data = snapshot.val() || {};
                 const levels = Object.keys(data).map(k => {
                     const lvl = data[k];
-                    let likesMap = lvl.likes || {};
-                    // Handle legacy numeric likes (migrate gracefully)
-                    if (typeof likesMap === 'number') likesMap = {};
+                    // Use the dedicated likesCount field (numeric). Fallback to scanning likes map for legacy data.
+                    let likesCount = 0;
+                    if (typeof lvl.likesCount === 'number') {
+                        likesCount = lvl.likesCount;
+                    } else {
+                        // legacy fallback: scan the full likes map
+                        const likesMap = lvl.likes || {};
+                        if (typeof likesMap === 'object') {
+                            Object.keys(likesMap).forEach(key => { if (likesMap[key]) likesCount++; });
+                        }
+                    }
                     const playHistory = lvl.playHistory || {};
                     const completedPlayers = lvl.completedPlayers || {};
                     const totalPlays = Object.keys(playHistory).length;  // unique players
                     const totalCompletions = Object.keys(completedPlayers).length;
-                    // Count likes: number of keys with value true
-                    let likesCount = 0;
-                    Object.keys(likesMap).forEach(key => { if (likesMap[key]) likesCount++; });
                     const clearRate = totalPlays > 0 ? (totalCompletions / totalPlays) * 100 : 0;
                     return {
                         id: k,
                         name: lvl.name || 'Untitled',
                         author: lvl.author || 'Anonymous',
                         likesCount: likesCount,
-                        likes: likesMap,  // full map for toggle
                         playCount: totalPlays,
                         totalPlaysRaw: totalPlays,
                         clearRate: clearRate,
@@ -1102,18 +1117,18 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             }
 
             const nickname = getPlayerNickname();
-
-            let html = '';
-            // Compute which level IDs the current player has completed (from Firebase data)
             const playerNick = getPlayerNickname();
+            let html = '';
             let rowIndex = 0;
+            
+            // Like state is not fetched from DB during listing — the button is always neutral
+            // and queries Firebase only on click. This avoids downloading the full likes map
+            // for every level.
             
             filtered.forEach(lvl => {
                 const dateStr = lvl.createdAt ? new Date(lvl.createdAt).toLocaleDateString() : '?';
                 const isOwn = nickname && lvl.author === nickname;
-                const userLiked = nickname && lvl.likes && lvl.likes[nickname] === true;
                 const clearRateStr = lvl.clearRate.toFixed(2) + '%';
-                // Check if current player completed this level
                 const playerCompleted = playerNick && lvl.completedPlayers && lvl.completedPlayers[playerNick] === true;
 
                 let rowBg = 'bg-white';
@@ -1136,8 +1151,8 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                                 </div>
                             </div>
                             <div class="flex items-center gap-1 shrink-0 ml-2">
-                                <button onclick="event.stopPropagation(); toggleLikeLevel('${lvl.id}')" class="px-2 py-1.5 border border-black ${userLiked ? 'bg-red-100 text-red-600' : 'bg-white text-black'} hover:bg-neutral-100 transition-colors font-black text-[9px] tracking-widest uppercase rounded-none" title="${userLiked ? 'Unlike' : 'Like'}">
-                                    <span class="material-symbols-outlined text-sm leading-none">${userLiked ? 'favorite' : 'favorite_border'}</span>
+                                <button id="like-btn-${lvl.id}" onclick="event.stopPropagation(); toggleLikeLevel('${lvl.id}')" class="px-2 py-1.5 border border-black bg-white text-black hover:bg-neutral-100 transition-colors font-black text-[9px] tracking-widest uppercase rounded-none" title="Like">
+                                    <span class="material-symbols-outlined text-sm leading-none">favorite_border</span>
                                 </button>
                                 <button onclick="event.stopPropagation(); playCommunityLevel('${lvl.id}')" class="px-3 py-1.5 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors font-black text-[9px] tracking-widest uppercase rounded-none">
                                     <span class="material-symbols-outlined text-sm leading-none">play_arrow</span>
@@ -1157,30 +1172,61 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 showBottomHudText('Set a nickname first!', 2000);
                 return;
             }
-            const ref = FIREBASE_DB.ref('community_levels/' + levelId + '/likes/' + nickname.replace(/[.#$\[\]]/g, '_'));
-            const lvl = _communityLevelsMeta.find(l => l.id === levelId);
-            const currentlyLiked = lvl && lvl.likes && lvl.likes[nickname] === true;
+            const safe = nickname.replace(/[.#$\[\]]/g, '_');
+            const likesRef = FIREBASE_DB.ref('community_levels/' + levelId + '/likes/' + safe);
+            const countRef = FIREBASE_DB.ref('community_levels/' + levelId + '/likesCount');
 
-            if (currentlyLiked) {
-                ref.remove().then(() => {
+            // First check if the user already liked it
+            likesRef.once('value').then(snap => {
+                const isLiked = snap.val() === true;
+
+                if (isLiked) {
+                    // Remove their like entry AND decrement count atomically
+                    likesRef.remove();
+                    countRef.transaction(current => {
+                        return (current === null || typeof current !== 'number') ? 0 : Math.max(0, current - 1);
+                    });
+                    // Update local cache
+                    const lvl = _communityLevelsMeta.find(l => l.id === levelId);
                     if (lvl) {
-                        if (lvl.likes) delete lvl.likes[nickname];
                         lvl.likesCount = Math.max(0, (lvl.likesCount || 0) - 1);
+                    }
+                    // Update button icon immediately
+                    const btn = document.getElementById('like-btn-' + levelId);
+                    if (btn) {
+                        btn.classList.remove('bg-red-100', 'text-red-600');
+                        btn.classList.add('bg-white', 'text-black');
+                        btn.querySelector('.material-symbols-outlined').textContent = 'favorite_border';
+                        btn.title = 'Like';
                     }
                     filterCommunityLevels();
                     showBottomHudText('Unliked.', 1000);
-                }).catch(err => console.warn('FB unlike error:', err));
-            } else {
-                ref.set(true).then(() => {
+                } else {
+                    // Add their like entry AND increment count atomically
+                    likesRef.set(true);
+                    countRef.transaction(current => {
+                        return (current === null || typeof current !== 'number') ? 1 : current + 1;
+                    });
+                    // Update local cache
+                    const lvl = _communityLevelsMeta.find(l => l.id === levelId);
                     if (lvl) {
-                        if (!lvl.likes) lvl.likes = {};
-                        lvl.likes[nickname] = true;
                         lvl.likesCount = (lvl.likesCount || 0) + 1;
+                    }
+                    // Update button icon
+                    const btn = document.getElementById('like-btn-' + levelId);
+                    if (btn) {
+                        btn.classList.add('bg-red-100', 'text-red-600');
+                        btn.classList.remove('bg-white', 'text-black');
+                        btn.querySelector('.material-symbols-outlined').textContent = 'favorite';
+                        btn.title = 'Unlike';
                     }
                     filterCommunityLevels();
                     showBottomHudText('Liked!', 1000);
-                }).catch(err => console.warn('FB like error:', err));
-            }
+                }
+            }).catch(err => {
+                console.warn('FB toggle like error:', err);
+                showBottomHudText('Error toggling like.', 1500);
+            });
         }
 
         // ── DELETE OWN COMMUNITY LEVEL ──
@@ -3843,7 +3889,13 @@ let currentSteps = 0;
             }
 
             const grid = lines.map(line => line.split(''));
+            const rows = grid.length;
             const maxCol = getMaxColumns(grid);
+
+            // Max size check: 20×20
+            if (rows > 20 || maxCol > 20) {
+                return { valid: false, error: `Grid is ${rows}×${maxCol} – max allowed is 20×20.` };
+            }
 
             let playerCount = 0;
             let playerPos = null;
