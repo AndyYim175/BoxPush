@@ -4954,18 +4954,41 @@ let currentSteps = 0;
             currentSteps = 0;
             updateStepsDisplay();
 
-            if (gameState === "playtest" && editorCustomGrid) {
-                const gridData = editorCustomGrid.map(row => row.join(''));
-                const name = "Custom Level";
-                setupLevelFromGrid(gridData, name, "Your custom level. Good luck!", false, true);
-                gameState = "playtest";
-                document.getElementById('level-title-display').textContent = `PLAYTEST: ${name}`;
-                document.getElementById('btn-back').classList.add('hidden');
-                document.getElementById('btn-back-editor').classList.remove('hidden');
-                document.getElementById('btn-back-title').classList.remove('hidden');
-                document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
-                document.getElementById('mobile-dpad-container').classList.remove('hidden');
-                document.getElementById('hud-coordinates').classList.remove('hidden');
+            if (gameState === "playtest") {
+                // Case 1: editor playtest (from Make tab)
+                if (editorCustomGrid) {
+                    const gridData = editorCustomGrid.map(row => row.join(''));
+                    const name = "Custom Level";
+                    setupLevelFromGrid(gridData, name, "Your custom level. Good luck!", false, true);
+                    gameState = "playtest";
+                    document.getElementById('level-title-display').textContent = `PLAYTEST: ${name}`;
+                    document.getElementById('btn-back').classList.add('hidden');
+                    document.getElementById('btn-back-editor').classList.remove('hidden');
+                    document.getElementById('btn-back-title').classList.remove('hidden');
+                    document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+                    document.getElementById('mobile-dpad-container').classList.remove('hidden');
+                    document.getElementById('hud-coordinates').classList.remove('hidden');
+                } 
+                // Case 2: community level played from browse
+                else if (window._communityLevelId && _communityGridCache[window._communityLevelId]) {
+                    const gridData = _communityGridCache[window._communityLevelId];
+                    const meta = _communityLevelsMeta.find(l => l.id === window._communityLevelId);
+                    const name = meta ? meta.name : "Community Level";
+                    setupLevelFromGrid(gridData, name, "Community level", false, true);
+                    gameState = "playtest";
+                    document.getElementById('level-title-display').textContent = `COMMUNITY: ${name}`;
+                    document.getElementById('btn-back').classList.add('hidden');
+                    document.getElementById('btn-back-editor').classList.add('hidden');
+                    document.getElementById('btn-back-title').classList.remove('hidden');
+                    document.getElementById('btn-customize').classList.add('hidden');
+                    document.getElementById('btn-respawn').classList.add('hidden');
+                    document.getElementById('btn-menu').classList.remove('hidden');
+                    document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+                    document.getElementById('btn-leaderboard-level').classList.remove('hidden');
+                    document.getElementById('mobile-dpad-container').classList.remove('hidden');
+                    document.getElementById('hud-coordinates').classList.remove('hidden');
+                }
+                
                 if (levelHasMoveTiles) {
                     document.getElementById('moves-counter').classList.remove('hidden');
                     document.getElementById('moves-number').textContent = '∞';
