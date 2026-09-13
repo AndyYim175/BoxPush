@@ -1583,31 +1583,21 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         // IMPORTANT: We ONLY allow submission when isLevelSolved is true AND the steps count
         // equals the currentSteps variable that the game tracking incremented. This prevents
         // calling submitScore manually from console with arbitrary step values.
-        function submitScore(levelIndex, steps, callback) {
+                function submitScore(levelIndex, steps, callback) {
             const nickname = getPlayerNickname();
             if (!nickname) { if (callback) callback(null); return; }
             
-            // ── ANTI-CHEAT: disallow submission unless game state is legitimately solved ──
+            // Silently refuse invalid submissions. No console output — do not
+            // log which guard tripped, as that leaks how the checks work.
             if (!isLevelSolved) {
-                console.warn('CHEAT DETECTED: submitScore called while level not solved!');
                 if (callback) callback(null);
                 return;
             }
-            
-            // ── ANTI-CHEAT: the steps argument MUST match the currentSteps tracked by the game ──
-            // currentSteps is incremented only by movePlayer(), which is sealed and non-redefinable.
-            // If someone calls submitScore(levelIndex, 1, callback) from console, steps will differ
-            // from currentSteps (unless they somehow also set currentSteps, but currentSteps is
-            // a let variable captured by closure — not accessible from the global scope at all).
             if (steps !== currentSteps) {
-                console.warn('CHEAT DETECTED: steps argument', steps, 'does not match tracked currentSteps', currentSteps);
                 if (callback) callback(null);
                 return;
             }
-            
-            // ── ANTI-CHEAT: steps must be positive and reasonable (at least 1, max 99999) ──
             if (typeof steps !== 'number' || steps < 1 || steps > 99999 || !Number.isInteger(steps)) {
-                console.warn('CHEAT DETECTED: invalid steps value', steps);
                 if (callback) callback(null);
                 return;
             }
