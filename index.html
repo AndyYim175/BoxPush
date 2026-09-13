@@ -4633,21 +4633,16 @@ let currentSteps = 0;
             });
             activeGrid[playerPos.r][playerPos.c] = originalGrid[playerPos.r][playerPos.c] === '.' ? '+' : '@';
 
-            const finalCell = originalGrid[simResult.player.r]?.[simResult.player.c];
+                        const finalCell = originalGrid[simResult.player.r]?.[simResult.player.c];
             if (finalCell >= 'a' && finalCell <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(finalCell)) {
                 const limit = MOVE_TILE_LIMITS[finalCell];
                 _remainingMoves = (limit === 0) ? Infinity : limit;
             } else if (_remainingMoves !== Infinity) {
                 _remainingMoves--;
-                if (_remainingMoves <= 0) {
-                    updateMovesDisplay();
-                    isLevelFailed = true;
-                    checkRules();
-                    return;
-                }
             }
             updateMovesDisplay();
             checkRules();
+            
         }
 
         function updateMovesDisplay() {
