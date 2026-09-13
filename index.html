@@ -257,8 +257,8 @@
                 <button onclick="startGameFromTitle()" class="w-full py-4 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
                     PLAY GAME
                 </button>
-                <button onclick="openLevelEditor()" class="w-full py-4 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
-                    LEVEL EDITOR
+                <button onclick="openCustomHub()" class="w-full py-4 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
+                    CUSTOM LEVELS
                 </button>
                 <button onclick="showCredits()" class="w-full py-4 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
                     CREDITS
@@ -270,28 +270,47 @@
         </p>
     </div>
 
-    <!-- Editor Screen -->
+    <!-- Custom Levels Hub (Hub + Make + Browse) -->
+    <div id="custom-hub-screen" class="fixed inset-0 z-50 flex flex-col bg-[#dcdcdc] p-4 md:p-6 hidden">
+        <!-- Top bar -->
+        <div class="flex items-center justify-between mb-3 shrink-0">
+            <button onclick="exitCustomHubToTitle()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none flex items-center space-x-2">
+                <span class="material-symbols-outlined text-base">close</span>
+                <span>BACK</span>
+            </button>
+            <h2 class="font-black text-sm tracking-widest uppercase text-black">CUSTOM LEVELS</h2>
+            <button onclick="openEditProfile()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none flex items-center space-x-2" title="Edit Profile">
+                <span class="material-symbols-outlined text-base">person_edit</span>
+                <span>PROFILE</span>
+            </button>
+        </div>
+        <div class="flex-1 flex flex-col items-center justify-center space-y-6">
+            <button onclick="openMakeLevel()" class="w-64 py-6 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
+                <span class="material-symbols-outlined select-none text-2xl block mb-2">add_box</span>
+                MAKE LEVELS
+            </button>
+            <button onclick="openBrowseLevels()" class="w-64 py-6 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-xs tracking-widest uppercase rounded-none active:bg-neutral-100">
+                <span class="material-symbols-outlined select-none text-2xl block mb-2">explore</span>
+                BROWSE LEVELS
+            </button>
+        </div>
+    </div>
+
+    <!-- Editor Screen (Make tab only) -->
     <div id="editor-screen" class="fixed inset-0 z-50 flex flex-col bg-[#dcdcdc] p-4 md:p-6 hidden">
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center space-x-3">
-                <button onclick="exitEditorToTitle()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none flex items-center space-x-2">
-                    <span class="material-symbols-outlined text-base">close</span>
-                    <span>EXIT</span>
+                <button onclick="exitMakeToHub()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none flex items-center space-x-2">
+                    <span class="material-symbols-outlined text-base">arrow_back</span>
+                    <span>BACK</span>
                 </button>
-                <h2 class="font-black text-sm tracking-widest uppercase text-black">LEVEL EDITOR</h2>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button onclick="validateEditorGrid()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
-                    <span class="material-symbols-outlined select-none text-xl leading-none">check_circle</span>
-                </button>
-                <button onclick="playtestEditorGrid()" class="h-11 px-4 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
-                    <span class="material-symbols-outlined select-none text-xl leading-none">experiment</span>
-                </button>
+                <h2 class="font-black text-sm tracking-widest uppercase text-black">MAKE LEVEL</h2>
             </div>
         </div>
-        <div class="flex-1 flex flex-col md:flex-row gap-3 min-h-0">
+        <!-- EDITOR panel (create tab) -->
+        <div id="editor-panel-create" class="flex-1 flex flex-col md:flex-row gap-3 min-h-0 mt-3">
             <div class="flex-1 flex flex-col min-h-0">
-                <label class="text-[10px] font-black tracking-widest text-black/60 mb-1">Note: NOT saved on exit to menu!</label>
+                <label class="text-[10px] font-black tracking-widest text-black/60 mb-1">Note: NOT saved on exit!</label>
                 <textarea id="editor-textarea" class="flex-1 w-full border border-black bg-white p-3 font-mono text-sm leading-relaxed resize-none min-h-[200px] rounded-none" spellcheck="false" placeholder="#########&#10;#       #&#10;# @ $ . #&#10;#       #&#10;#########"></textarea>
             </div>
             <div class="md:w-64 flex flex-col gap-2">
@@ -302,6 +321,72 @@
                     <span class="block">Use: <span class="text-black">#</span> wall, <span class="text-black">@</span> player, <span class="text-black">$</span> box, <span class="text-black">.</span> target</span>
                     <span class="block mt-1">Also: <span class="text-black">x</span> trap, <span class="text-black">I</span> ice, <span class="text-black">A-D</span> big, <span class="text-black">E-H</span> ice, <span class="text-black">J-M</span> fire, <span class="text-black">N-Q</span> transparent, <span class="text-black">a-z</span> move tiles</span>
                 </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="validateEditorGrid()" class="flex-1 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none" title="Validate grid (required before publish)">
+                        <span class="material-symbols-outlined select-none text-xl leading-none">check_circle</span>
+                    </button>
+                    <button onclick="playtestEditorGrid()" class="flex-1 h-11 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
+                        <span class="material-symbols-outlined select-none text-xl leading-none">experiment</span>
+                    </button>
+                    <button onclick="openPublishModal()" class="flex-1 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
+                        <span class="material-symbols-outlined select-none text-xl leading-none">publish</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Browse Levels Screen -->
+    <div id="browse-screen" class="fixed inset-0 z-50 flex flex-col bg-[#dcdcdc] p-4 md:p-6 hidden">
+        <div class="flex items-center justify-between mb-3 shrink-0">
+            <button onclick="exitBrowseToHub()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none flex items-center space-x-2">
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                <span>BACK</span>
+            </button>
+            <h2 class="font-black text-sm tracking-widest uppercase text-black">BROWSE LEVELS</h2>
+            <button onclick="refreshCommunityLevels()" class="h-11 px-4 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">
+                <span class="material-symbols-outlined select-none text-xl leading-none">refresh</span>
+            </button>
+        </div>
+        <!-- Search -->
+        <div class="flex items-center space-x-2 mb-3 shrink-0">
+            <input id="community-search-input" type="text" maxlength="40" class="flex-1 border border-black px-3 py-2.5 text-sm font-bold tracking-wider rounded-none focus:outline-none focus:ring-2 focus:ring-black" placeholder="Search by name or author..." oninput="filterCommunityLevels()">
+        </div>
+        <!-- Results -->
+        <div id="community-level-list" class="flex-1 overflow-y-auto bg-white border border-black p-2 space-y-1">
+            <div class="text-xs font-bold text-neutral-400 py-8 text-center">Loading community levels…</div>
+        </div>
+    </div>
+
+    <!-- Publish Modal (UI-based, no prompt) -->
+    <div id="publish-modal" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden">
+        <div class="bg-white border border-black p-6 max-w-sm w-full text-center relative rounded-none">
+            <h2 class="font-black text-sm tracking-widest uppercase text-black mb-4">PUBLISH LEVEL</h2>
+            <div class="mb-4 text-left">
+                <label class="font-black text-[10px] tracking-widest uppercase block mb-1 text-neutral-400">Level Name</label>
+                <input id="publish-name-input" type="text" maxlength="40" class="w-full border border-black px-3 py-2.5 text-sm font-bold tracking-wider rounded-none focus:outline-none focus:ring-2 focus:ring-black" placeholder="My awesome level" autocomplete="off">
+                <p id="publish-error" class="text-[10px] font-black text-red-600 mt-1 hidden"></p>
+            </div>
+            <button onclick="confirmPublish()" class="w-full py-3 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100 mb-2">
+                PUBLISH
+            </button>
+            <button onclick="closePublishModal()" class="w-full py-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
+                CANCEL
+            </button>
+        </div>
+    </div>
+
+    <!-- Comment Modal -->
+    <div id="comment-modal" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-2 border-black w-full max-w-lg max-h-[85vh] flex flex-col rounded-none shadow-xl">
+            <div class="bg-black text-white px-5 py-3 flex items-center justify-between shrink-0 rounded-none">
+                <h3 id="comment-modal-title" class="font-black text-[10px] tracking-widest uppercase truncate pr-2">COMMENTS</h3>
+                <button onclick="closeCommentModal()" class="w-7 h-7 border border-white/40 flex items-center justify-center hover:bg-white hover:text-black transition-colors font-bold text-[10px] rounded-none">X</button>
+            </div>
+            <div id="comment-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+            <div class="p-3 border-t border-black flex items-center space-x-2 shrink-0">
+                <input id="comment-input" type="text" maxlength="200" class="flex-1 border border-black px-3 py-2 text-sm font-bold tracking-wider rounded-none focus:outline-none focus:ring-2 focus:ring-black" placeholder="Write a comment..." autocomplete="off">
+                <button onclick="submitComment()" class="px-4 py-2 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none">POST</button>
             </div>
         </div>
     </div>
@@ -377,6 +462,38 @@
                 <span>Rank (bracket) — Your Rank</span>
                 <span>Steps</span>
             </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal (view profile) -->
+    <div id="profile-modal" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-2 border-black w-full max-w-sm max-h-[70vh] flex flex-col rounded-none shadow-xl">
+            <div class="bg-black text-white px-5 py-3 flex items-center justify-between shrink-0 rounded-none">
+                <h3 id="profile-modal-title" class="font-black text-[10px] tracking-widest uppercase truncate pr-2">PROFILE</h3>
+                <button onclick="closeProfileModal()" class="w-7 h-7 border border-white/40 flex items-center justify-center hover:bg-white hover:text-black transition-colors font-bold text-[10px] rounded-none">X</button>
+            </div>
+            <div id="profile-content" class="flex-1 overflow-y-auto p-4">
+                <div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="edit-profile-modal" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black/40 backdrop-blur-sm p-6 hidden">
+        <div class="bg-white border border-black p-6 max-w-sm w-full text-center relative rounded-none">
+            <h2 class="font-black text-sm tracking-widest uppercase text-black mb-4">EDIT PROFILE</h2>
+            <div class="mb-4 text-left">
+                <label class="font-black text-[10px] tracking-widest uppercase block mb-1 text-neutral-400">Description (max 300 chars)</label>
+                <textarea id="profile-desc-input" maxlength="300" class="w-full border border-black px-3 py-2.5 text-sm font-bold tracking-wider rounded-none focus:outline-none focus:ring-2 focus:ring-black resize-none" rows="4" placeholder="Tell others about yourself..."></textarea>
+                <p id="profile-desc-char-count" class="text-[9px] font-black text-neutral-400 mt-1 text-right">0/300</p>
+                <p id="edit-profile-error" class="text-[10px] font-black text-red-600 mt-1 hidden"></p>
+            </div>
+            <button onclick="saveProfileDesc()" class="w-full py-3 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100 mb-2">
+                SAVE
+            </button>
+            <button onclick="closeEditProfileModal()" class="w-full py-3 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none active:bg-neutral-100">
+                CANCEL
+            </button>
         </div>
     </div>
 
@@ -475,7 +592,45 @@
             });
         }
 
-        function claimNicknameInDb(nickname, oldNickname, callback) {
+        // ── MODAL ENTER KEY HANDLERS ──
+document.addEventListener('keydown', function _modalEnterHandler(e) {
+    // Escape closes modals
+    if (e.key === 'Escape') {
+        if (!document.getElementById('profile-modal').classList.contains('hidden')) {
+            closeProfileModal();
+            e.preventDefault();
+        }
+        if (!document.getElementById('edit-profile-modal').classList.contains('hidden')) {
+            closeEditProfileModal();
+            e.preventDefault();
+        }
+    }
+    if (e.key === 'Enter') {
+        if (!document.getElementById('publish-modal').classList.contains('hidden')) {
+            const active = document.activeElement;
+            if (active && active.id === 'publish-name-input') {
+                e.preventDefault();
+                confirmPublish();
+            }
+        }
+        if (!document.getElementById('comment-modal').classList.contains('hidden')) {
+            const active = document.activeElement;
+            if (active && active.id === 'comment-input') {
+                e.preventDefault();
+                submitComment();
+            }
+        }
+        if (!document.getElementById('nickname-modal').classList.contains('hidden')) {
+            const active = document.activeElement;
+            if (active && active.id === 'nickname-input') {
+                e.preventDefault();
+                document.getElementById('nickname-submit').click();
+            }
+        }
+    }
+});
+
+function claimNicknameInDb(nickname, oldNickname, callback) {
             const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
             const ref = FIREBASE_DB.ref('usernames/' + safeKey);
             ref.set({ timestamp: Date.now() }).then(() => {
@@ -488,6 +643,855 @@
                 console.warn('Firebase error (claim):', err);
                 if (callback) callback();
             });
+        }
+
+        // ── TRANSFER ALL LEADERBOARD ENTRIES AND COMMUNITY LEVEL AUTHOR from old nickname to new nickname ──
+        function transferLeaderboardEntries(oldNickname, newNickname, callback) {
+            const promises = [];
+
+            // 1) Transfer leaderboard entries
+            const lbRef = FIREBASE_DB.ref('leaderboards');
+            const lbPromise = lbRef.once('value').then(snapshot => {
+                const allLevels = snapshot.val() || {};
+                Object.keys(allLevels).forEach(levelKey => {
+                    const levelRef = FIREBASE_DB.ref('leaderboards/' + levelKey);
+                    const levelData = allLevels[levelKey];
+                    const entryKeys = Object.keys(levelData);
+                    entryKeys.forEach(entryKey => {
+                        const entry = levelData[entryKey];
+                        if (entry.nickname === oldNickname) {
+                            promises.push(levelRef.child(entryKey).update({ nickname: newNickname }));
+                        }
+                    });
+                });
+            });
+            promises.push(lbPromise);
+
+            // 2) Transfer community level authors
+            const clRef = FIREBASE_DB.ref('community_levels');
+            const clPromise = clRef.once('value').then(snapshot => {
+                const allLevels = snapshot.val() || {};
+                Object.keys(allLevels).forEach(levelKey => {
+                    const lvl = allLevels[levelKey];
+                    if (lvl.author === oldNickname) {
+                        promises.push(clRef.child(levelKey).update({ author: newNickname }));
+                    }
+                });
+            });
+            promises.push(clPromise);
+
+            // 3) Transfer community level comment authors
+            const commentPromise = FIREBASE_DB.ref('community_levels').once('value').then(snapshot => {
+                const allLevels = snapshot.val() || {};
+                Object.keys(allLevels).forEach(levelKey => {
+                    const lvl = allLevels[levelKey];
+                    const comments = lvl.comments || {};
+                    Object.keys(comments).forEach(commentKey => {
+                        const comment = comments[commentKey];
+                        if (comment.author === oldNickname) {
+                            promises.push(
+                                FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey)
+                                .update({ author: newNickname })
+                            );
+                        }
+                    });
+                });
+            });
+            promises.push(commentPromise);
+
+            // 4) Transfer usernames entry (description, etc.)
+            const oldSafe = oldNickname.replace(/[.#$\[\]]/g, '_');
+            const newSafe = newNickname.replace(/[.#$\[\]]/g, '_');
+            const descPromise = FIREBASE_DB.ref('usernames/' + oldSafe + '/desc').once('value').then(snap => {
+                const desc = snap.val();
+                if (desc) {
+                    promises.push(FIREBASE_DB.ref('usernames/' + newSafe + '/desc').set(desc));
+                }
+            });
+            promises.push(descPromise);
+
+            Promise.all(promises).then(() => {
+                if (callback) callback();
+            }).catch(err => {
+                console.warn('Firebase error (transfer):', err);
+                if (callback) callback();
+            });
+        }
+
+        // ── PROFILE DESCRIPTION SYSTEM ──
+        
+        function openEditProfile() {
+            const nickname = getPlayerNickname();
+            if (!nickname) {
+                showBottomHudText('Set a nickname first!', 2000);
+                return;
+            }
+            
+            const modal = document.getElementById('edit-profile-modal');
+            const input = document.getElementById('profile-desc-input');
+            const charCount = document.getElementById('profile-desc-char-count');
+            const errorEl = document.getElementById('edit-profile-error');
+            
+            // Load current description from DB
+            const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
+            FIREBASE_DB.ref('usernames/' + safeKey + '/desc').once('value').then(snap => {
+                const desc = snap.val() || '';
+                input.value = desc;
+                charCount.textContent = desc.length + '/300';
+                errorEl.classList.add('hidden');
+                modal.classList.remove('hidden');
+                input.focus();
+            }).catch(err => {
+                console.warn('FB load desc error:', err);
+                input.value = '';
+                charCount.textContent = '0/300';
+                errorEl.classList.add('hidden');
+                modal.classList.remove('hidden');
+                input.focus();
+            });
+        }
+        
+        function closeEditProfileModal() {
+            document.getElementById('edit-profile-modal').classList.add('hidden');
+        }
+        
+        // Char counter for profile description
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('profile-desc-input');
+            if (input) {
+                input.addEventListener('input', () => {
+                    const len = input.value.length;
+                    document.getElementById('profile-desc-char-count').textContent = len + '/300';
+                });
+            }
+        });
+        
+        function saveProfileDesc() {
+            const nickname = getPlayerNickname();
+            if (!nickname) return;
+            
+            const input = document.getElementById('profile-desc-input');
+            const errorEl = document.getElementById('edit-profile-error');
+            const desc = input.value.trim();
+            
+            if (desc.length > 300) {
+                errorEl.textContent = 'Description too long (max 300).';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            
+            const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
+            FIREBASE_DB.ref('usernames/' + safeKey + '/desc').set(desc).then(() => {
+                closeEditProfileModal();
+                showBottomHudText('Profile updated!', 1500);
+            }).catch(err => {
+                console.warn('FB save desc error:', err);
+                errorEl.textContent = 'Failed to save. Try again.';
+                errorEl.classList.remove('hidden');
+            });
+        }
+        
+        // ── VIEW PROFILE (by nickname) ──
+        function viewProfile(nickname) {
+            const modal = document.getElementById('profile-modal');
+            const titleEl = document.getElementById('profile-modal-title');
+            const contentEl = document.getElementById('profile-content');
+            
+            titleEl.textContent = `PROFILE: ${nickname}`;
+            contentEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>';
+            modal.classList.remove('hidden');
+            
+            const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
+            
+            // Gather stats in parallel
+            const statsPromises = [];
+            
+            // 1) Completed main levels count (from localStorage for own profile, or estimate from leaderboards)
+            const mainLevelsCompleted = new Promise(resolve => {
+                const currentNick = getPlayerNickname();
+                if (currentNick === nickname) {
+                    // Own profile: read from localStorage
+                    const saved = localStorage.getItem('boxpush_completed_levels');
+                    if (saved) {
+                        try {
+                            const parsed = JSON.parse(saved);
+                            const normalCount = parsed.filter(idx => LEVELS[idx] && !LEVELS[idx].special).length;
+                            resolve(normalCount);
+                        } catch(e) { resolve(0); }
+                    } else resolve(0);
+                } else {
+                    // Other profile: scan leaderboards for main levels where this player has an entry
+                    // Not fully accurate, skip for now
+                    resolve('?');
+                }
+            });
+            statsPromises.push(mainLevelsCompleted);
+            
+            // 2) Completed community levels count & community points (total hearts across created levels)
+            const communityStats = new Promise(resolve => {
+                const ref = FIREBASE_DB.ref('community_levels');
+                ref.once('value').then(snapshot => {
+                    const data = snapshot.val() || {};
+                    let communityCompleted = 0;
+                    let communityPoints = 0;
+                    
+                    Object.keys(data).forEach(key => {
+                        const lvl = data[key];
+                        // Count community points from levels created BY this user
+                        if (lvl.author === nickname) {
+                            const likesMap = lvl.likes || {};
+                            if (typeof likesMap !== 'number') {
+                                Object.keys(likesMap).forEach(k => { if (likesMap[k]) communityPoints++; });
+                            }
+                        }
+                        // Count community levels completed BY this user
+                        const completedPlayers = lvl.completedPlayers || {};
+                        if (completedPlayers[nickname] === true) {
+                            communityCompleted++;
+                        }
+                    });
+                    
+                    resolve({ communityCompleted, communityPoints });
+                }).catch(err => {
+                    resolve({ communityCompleted: '?', communityPoints: '?' });
+                });
+            });
+            statsPromises.push(communityStats);
+            
+            // Fetch profile data + stats
+            FIREBASE_DB.ref('usernames/' + safeKey).once('value').then(snap => {
+                const data = snap.val() || {};
+                const desc = data.desc || '';
+                const createdAt = data.timestamp || null;
+                
+                Promise.all(statsPromises).then(results => {
+                    const mainCompleted = results[0];
+                    const { communityCompleted, communityPoints } = results[1];
+                    
+                    let html = `<div class="text-left space-y-3">`;
+                    html += `<h4 class="font-black text-sm tracking-widest uppercase text-black">${escapeHtml(nickname)}</h4>`;
+                    
+                    // Stats section
+                    html += `<div class="grid grid-cols-3 gap-2 bg-neutral-50 border border-neutral-200 p-3 rounded-none text-center">
+                                <div>
+                                    <div class="font-black text-sm text-black">${mainCompleted}</div>
+                                    <div class="text-[8px] font-black tracking-widest uppercase text-neutral-400">Main lvls</div>
+                                </div>
+                                <div>
+                                    <div class="font-black text-sm text-green-600">${communityCompleted}</div>
+                                    <div class="text-[8px] font-black tracking-widest uppercase text-neutral-400">Community</div>
+                                </div>
+                                <div>
+                                    <div class="font-black text-sm text-amber-600">${communityPoints}</div>
+                                    <div class="text-[8px] font-black tracking-widest uppercase text-neutral-400">Likes</div>
+                                </div>
+                            </div>`;
+                    
+                    if (desc && desc.trim()) {
+                        html += `<div class="text-xs font-normal leading-relaxed text-neutral-700 whitespace-pre-wrap bg-neutral-50 border border-neutral-200 p-3 rounded-none">${escapeHtml(desc)}</div>`;
+                    } else {
+                        html += `<p class="text-xs italic text-neutral-400">No description set.</p>`;
+                    }
+                    
+                    if (createdAt) {
+                        const dateStr = new Date(createdAt).toLocaleDateString() + ' ' + new Date(createdAt).toLocaleTimeString();
+                        html += `<p class="text-[9px] font-black text-neutral-400 tracking-widest uppercase">Registered: ${dateStr}</p>`;
+                    }
+                    
+                    html += `</div>`;
+                    contentEl.innerHTML = html;
+                });
+            }).catch(err => {
+                console.warn('FB load profile error:', err);
+                contentEl.innerHTML = '<div class="text-xs font-bold text-red-500 py-4 text-center">Failed to load profile.</div>';
+            });
+        }
+        
+        function closeProfileModal() {
+            document.getElementById('profile-modal').classList.add('hidden');
+        }
+
+        // ── COMMUNITY LEVELS SYSTEM (integrated in editor) ──
+
+        // We store metadata only (no grid) for the browse list; grid loaded lazily on play.
+        let _communityLevelsMeta = [];      // { id, name, author, likes, createdAt, playCount } – no grid data
+        let _communityGridCache = {};       // id -> grid array (loaded on demand)
+
+        function switchEditorTab(tab) {
+            // Only "create" tab exists now
+        }
+
+        // ── Editor validation tracking ──
+        let _editorGridValidated = false;
+        let _editorLastGridHash = '';
+        // Must complete your own level in playtest before publish
+        let _editorPlaytestCompleted = false;
+
+        function editorGridHash(text) {
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash |= 0;
+            }
+            return hash;
+        }
+
+        // Listen for changes in the editor textarea to invalidate validation
+        document.addEventListener('DOMContentLoaded', () => {
+            const ta = document.getElementById('editor-textarea');
+            if (ta) {
+                ta.addEventListener('input', () => {
+                    _editorGridValidated = false;
+                    _editorLastGridHash = '';
+                    _editorPlaytestCompleted = false;
+                    const statusEl = document.getElementById('editor-status');
+                    if (statusEl && !statusEl.innerHTML.includes('⏳')) {
+                        statusEl.innerHTML = '<div class="editor-status-info">⚠️ Grid changed – re-validate and complete before publishing.</div>';
+                    }
+                });
+                // Also invalidate on first load
+                _editorGridValidated = false;
+                _editorPlaytestCompleted = false;
+            }
+        });
+
+        // ── PUBLISH MODAL (UI-based, no prompt) ──
+        function openPublishModal() {
+            const modal = document.getElementById('publish-modal');
+            document.getElementById('publish-name-input').value = '';
+            document.getElementById('publish-error').classList.add('hidden');
+            
+            // Check validation
+            if (!_editorGridValidated) {
+                const statusEl = document.getElementById('editor-status');
+                statusEl.innerHTML = '<div class="editor-status-info">⚠️ Please validate the grid first (click ✓).</div>';
+                return;
+            }
+            
+            // Check playtest completion
+            if (!_editorPlaytestCompleted) {
+                const statusEl = document.getElementById('editor-status');
+                statusEl.innerHTML = '<div class="editor-status-info">⚠️ Please complete your own level first (playtest & win).</div>';
+                return;
+            }
+            
+            modal.classList.remove('hidden');
+            document.getElementById('publish-name-input').focus();
+        }
+
+        function closePublishModal() {
+            document.getElementById('publish-modal').classList.add('hidden');
+        }
+
+        function confirmPublish() {
+            const nameInput = document.getElementById('publish-name-input');
+            const errorEl = document.getElementById('publish-error');
+            const name = nameInput.value.trim();
+            if (!name || name.length < 1) {
+                errorEl.textContent = 'Name is required.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (name.length > 40) {
+                errorEl.textContent = 'Name too long (max 40).';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            const gridText = document.getElementById('editor-textarea').value.trim();
+            if (!gridText) {
+                document.getElementById('editor-status').innerHTML = '<div class="editor-status-info">Publish cancelled – grid is empty.</div>';
+                closePublishModal();
+                return;
+            }
+            const result = parseAndValidateGrid(gridText);
+            if (!result.valid) {
+                document.getElementById('editor-status').innerHTML = '<div class="editor-status-error">Invalid grid: ' + result.error + '</div>';
+                closePublishModal();
+                return;
+            }
+            const nickname = getPlayerNickname();
+            if (!nickname) {
+                document.getElementById('editor-status').innerHTML = '<div class="editor-status-info">Please set a nickname first (Menu > Edit Nickname).</div>';
+                closePublishModal();
+                return;
+            }
+
+            document.getElementById('editor-status').innerHTML = '<div class="editor-status-info">Publishing…</div>';
+            closePublishModal();
+
+            const ref = FIREBASE_DB.ref('community_levels').push();
+            ref.set({
+                name: name,
+                grid: gridText.split('\n').filter(l => l.trim() !== ''),
+                author: nickname,
+                createdAt: Date.now(),
+                likes: {},          // map of player_id -> true for unique likes
+                playCount: 0,
+                playHistory: {},      // map of player_id -> true (unique play counting)
+                comments: {},         // map of pushId -> { author, text, completed, upvotes: {}, downvotes: {}, createdAt }
+                completedPlayers: {}  // map of player_id -> true
+            }).then(() => {
+                document.getElementById('editor-status').innerHTML = '<div class="editor-status-ok">✅ Published!</div>';
+                _communityLevelsMeta = [];
+            }).catch(err => {
+                console.warn('Firebase error (publish):', err);
+                document.getElementById('editor-status').innerHTML = '<div class="editor-status-error">❌ Failed to publish. Try again.</div>';
+            });
+        }
+
+        function refreshCommunityLevels() {
+            const listEl = document.getElementById('community-level-list');
+            listEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-8 text-center">Loading…</div>';
+            _communityLevelsMeta = [];
+            _communityGridCache = {};
+
+            const ref = FIREBASE_DB.ref('community_levels');
+            ref.orderByChild('createdAt').limitToLast(200).once('value').then(snapshot => {
+                const data = snapshot.val() || {};
+                const levels = Object.keys(data).map(k => {
+                    const lvl = data[k];
+                    let likesMap = lvl.likes || {};
+                    // Handle legacy numeric likes (migrate gracefully)
+                    if (typeof likesMap === 'number') likesMap = {};
+                    const playHistory = lvl.playHistory || {};
+                    const completedPlayers = lvl.completedPlayers || {};
+                    const totalPlays = Object.keys(playHistory).length;  // unique players
+                    const totalCompletions = Object.keys(completedPlayers).length;
+                    // Count likes: number of keys with value true
+                    let likesCount = 0;
+                    Object.keys(likesMap).forEach(key => { if (likesMap[key]) likesCount++; });
+                    const clearRate = totalPlays > 0 ? (totalCompletions / totalPlays) * 100 : 0;
+                    return {
+                        id: k,
+                        name: lvl.name || 'Untitled',
+                        author: lvl.author || 'Anonymous',
+                        likesCount: likesCount,
+                        likes: likesMap,  // full map for toggle
+                        playCount: totalPlays,
+                        totalPlaysRaw: totalPlays,
+                        clearRate: clearRate,
+                        createdAt: lvl.createdAt || 0,
+                        comments: lvl.comments || {},
+                        completedPlayers: completedPlayers
+                    };
+                }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                _communityLevelsMeta = levels;
+                filterCommunityLevels();
+            }).catch(err => {
+                console.warn('Firebase error (load community):', err);
+                listEl.innerHTML = '<div class="text-xs font-bold text-red-500 py-8 text-center">Failed to load community levels.</div>';
+            });
+        }
+
+        function filterCommunityLevels() {
+            const listEl = document.getElementById('community-level-list');
+            const query = document.getElementById('community-search-input').value.trim().toLowerCase();
+
+            let filtered = _communityLevelsMeta;
+            if (query) {
+                filtered = filtered.filter(lvl =>
+                    lvl.name.toLowerCase().includes(query) ||
+                    lvl.author.toLowerCase().includes(query)
+                );
+            }
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-8 text-center">No levels found' + (query ? ' matching "' + escapeHtml(query) + '".' : ' yet. Be the first to publish!') + '</div>';
+                return;
+            }
+
+            const nickname = getPlayerNickname();
+
+            let html = '';
+            // Compute which level IDs the current player has completed (from Firebase data)
+            const playerNick = getPlayerNickname();
+            let rowIndex = 0;
+            
+            filtered.forEach(lvl => {
+                const dateStr = lvl.createdAt ? new Date(lvl.createdAt).toLocaleDateString() : '?';
+                const isOwn = nickname && lvl.author === nickname;
+                const userLiked = nickname && lvl.likes && lvl.likes[nickname] === true;
+                const clearRateStr = lvl.clearRate.toFixed(2) + '%';
+                // Check if current player completed this level
+                const playerCompleted = playerNick && lvl.completedPlayers && lvl.completedPlayers[playerNick] === true;
+
+                let rowBg = 'bg-white';
+                if (playerCompleted) {
+                    rowBg = (rowIndex % 2 === 0) ? 'bg-green-100' : 'bg-green-200';
+                } else {
+                    rowBg = (rowIndex % 2 === 0) ? 'bg-white' : 'bg-neutral-50';
+                }
+                rowIndex++;
+
+                html += `<div class="flex items-center justify-between py-3 px-3 text-xs border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${rowBg}">
+                            <div class="flex-1 min-w-0 cursor-pointer" onclick="openLevelDetail('${lvl.id}')">
+                                <div class="font-black text-[11px] tracking-widest uppercase truncate text-black">${escapeHtml(lvl.name)}</div>
+                                <div class="text-[9px] font-bold text-neutral-400 mt-0.5 space-x-1">
+                                    <span>by <span class="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline" onclick="event.stopPropagation(); viewProfile('${escapeHtml(lvl.author)}')">${escapeHtml(lvl.author)}</span>${isOwn ? ' <span class="text-amber-600">(you)</span>' : ''}</span>
+                                    <span>· ${dateStr}</span>
+                                    <span>· <span class="material-symbols-outlined text-[9px] align-middle">favorite</span> ${lvl.likesCount}</span>
+                                    <span>· <span class="material-symbols-outlined text-[9px] align-middle">play_arrow</span> ${lvl.totalPlaysRaw}</span>
+                                    <span>· <span class="text-green-600 font-black">${clearRateStr}</span></span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0 ml-2">
+                                <button onclick="event.stopPropagation(); toggleLikeLevel('${lvl.id}')" class="px-2 py-1.5 border border-black ${userLiked ? 'bg-red-100 text-red-600' : 'bg-white text-black'} hover:bg-neutral-100 transition-colors font-black text-[9px] tracking-widest uppercase rounded-none" title="${userLiked ? 'Unlike' : 'Like'}">
+                                    <span class="material-symbols-outlined text-sm leading-none">${userLiked ? 'favorite' : 'favorite_border'}</span>
+                                </button>
+                                <button onclick="event.stopPropagation(); playCommunityLevel('${lvl.id}')" class="px-3 py-1.5 border border-black bg-black text-white hover:bg-white hover:text-black transition-colors font-black text-[9px] tracking-widest uppercase rounded-none">
+                                    <span class="material-symbols-outlined text-sm leading-none">play_arrow</span>
+                                </button>
+                                ${isOwn ? `<button onclick="event.stopPropagation(); deleteCommunityLevel('${lvl.id}')" class="px-2 py-1.5 border border-red-600 bg-white text-red-600 hover:bg-red-600 hover:text-white transition-colors font-black text-[9px] tracking-widest uppercase rounded-none" title="Delete level">
+                                    <span class="material-symbols-outlined text-sm leading-none">delete</span>
+                                </button>` : ''}
+                            </div>
+                        </div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function toggleLikeLevel(levelId) {
+            const nickname = getPlayerNickname();
+            if (!nickname) {
+                showBottomHudText('Set a nickname first!', 2000);
+                return;
+            }
+            const ref = FIREBASE_DB.ref('community_levels/' + levelId + '/likes/' + nickname.replace(/[.#$\[\]]/g, '_'));
+            const lvl = _communityLevelsMeta.find(l => l.id === levelId);
+            const currentlyLiked = lvl && lvl.likes && lvl.likes[nickname] === true;
+
+            if (currentlyLiked) {
+                ref.remove().then(() => {
+                    if (lvl) {
+                        if (lvl.likes) delete lvl.likes[nickname];
+                        lvl.likesCount = Math.max(0, (lvl.likesCount || 0) - 1);
+                    }
+                    filterCommunityLevels();
+                    showBottomHudText('Unliked.', 1000);
+                }).catch(err => console.warn('FB unlike error:', err));
+            } else {
+                ref.set(true).then(() => {
+                    if (lvl) {
+                        if (!lvl.likes) lvl.likes = {};
+                        lvl.likes[nickname] = true;
+                        lvl.likesCount = (lvl.likesCount || 0) + 1;
+                    }
+                    filterCommunityLevels();
+                    showBottomHudText('Liked!', 1000);
+                }).catch(err => console.warn('FB like error:', err));
+            }
+        }
+
+        // ── DELETE OWN COMMUNITY LEVEL ──
+        function deleteCommunityLevel(levelId) {
+            const nickname = getPlayerNickname();
+            const lvl = _communityLevelsMeta.find(l => l.id === levelId);
+            if (!nickname || !lvl || lvl.author !== nickname) {
+                showBottomHudText('Not your level!', 1500);
+                return;
+            }
+            if (!confirm(`Delete "${lvl.name}" permanently? This cannot be undone.`)) return;
+            
+            FIREBASE_DB.ref('community_levels/' + levelId).remove().then(() => {
+                showBottomHudText('Level deleted!', 2000);
+                // Remove from cache
+                _communityLevelsMeta = _communityLevelsMeta.filter(l => l.id !== levelId);
+                delete _communityGridCache[levelId];
+                filterCommunityLevels();
+            }).catch(err => {
+                console.warn('FB delete level error:', err);
+                showBottomHudText('Failed to delete.', 1500);
+            });
+        }
+
+        function likeCommunityLevel(levelId) {
+            // legacy alias
+            toggleLikeLevel(levelId);
+        }
+
+        // ── Level Detail / Comment system ──
+        let _detailLevelId = null;
+
+        function openLevelDetail(levelId) {
+            _detailLevelId = levelId;
+            const lvl = _communityLevelsMeta.find(l => l.id === levelId);
+            if (!lvl) return;
+
+            // Open comment modal for this level
+            const modal = document.getElementById('comment-modal');
+            document.getElementById('comment-modal-title').textContent = `COMMENTS — ${lvl.name}`;
+            document.getElementById('comment-list').innerHTML = '<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading comments…</div>';
+            document.getElementById('comment-input').value = '';
+            modal.classList.remove('hidden');
+
+            loadCommentsForLevel(levelId);
+        }
+
+        function closeCommentModal() {
+            document.getElementById('comment-modal').classList.add('hidden');
+            _detailLevelId = null;
+        }
+
+        function loadCommentsForLevel(levelId) {
+            const ref = FIREBASE_DB.ref('community_levels/' + levelId + '/comments');
+            ref.once('value').then(snapshot => {
+                const data = snapshot.val() || {};
+                renderComments(levelId, data);
+            }).catch(err => {
+                console.warn('FB load comments error:', err);
+                document.getElementById('comment-list').innerHTML = '<div class="text-xs font-bold text-red-500 py-4 text-center">Failed to load comments.</div>';
+            });
+        }
+
+        function renderComments(levelId, commentsData) {
+            const listEl = document.getElementById('comment-list');
+            const nickname = getPlayerNickname();
+            const lvl = _communityLevelsMeta.find(l => l.id === levelId);
+            const completedPlayers = lvl ? (lvl.completedPlayers || {}) : {};
+
+            const keys = Object.keys(commentsData).sort((a, b) => commentsData[b].createdAt - commentsData[a].createdAt);
+
+            if (keys.length === 0) {
+                listEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-4 text-center">No comments yet. Be the first!</div>';
+                return;
+            }
+
+            let html = '';
+            keys.forEach(key => {
+                const c = commentsData[key];
+                const isOwn = nickname && c.author === nickname;
+                const hasCompleted = completedPlayers[c.author] === true;
+                // Count upvotes/downvotes
+                const upvotes = c.upvotes || {};
+                const downvotes = c.downvotes || {};
+                let upCount = 0, downCount = 0;
+                Object.keys(upvotes).forEach(k => { if (upvotes[k]) upCount++; });
+                Object.keys(downvotes).forEach(k => { if (downvotes[k]) downCount++; });
+                const userUp = nickname && upvotes[nickname] === true;
+                const userDown = nickname && downvotes[nickname] === true;
+
+                html += `<div class="py-2 px-3 text-xs border-b border-neutral-100 ${isOwn ? 'bg-blue-50' : ''}">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-black text-[10px] tracking-widest uppercase cursor-pointer text-blue-600 hover:text-blue-800 hover:underline" onclick="viewProfile('${escapeHtml(c.author)}')">${escapeHtml(c.author)}</span>
+                                    ${hasCompleted ? '<span class="text-[8px] font-black text-green-600 bg-green-100 px-1 py-0.5 rounded-none uppercase tracking-widest">COMPLETED</span>' : ''}
+                                    ${isOwn ? '<span class="text-[8px] font-black text-blue-600">(you)</span>' : ''}
+                                </div>
+                                <span class="text-[9px] text-neutral-400">${new Date(c.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <div class="mt-1 text-neutral-700 font-medium leading-relaxed">${escapeHtml(c.text)}</div>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <button onclick="voteComment('${levelId}','${key}','up')" class="flex items-center space-x-0.5 px-1.5 py-0.5 border border-neutral-200 ${userUp ? 'bg-green-100 border-green-300' : 'bg-white'} hover:bg-neutral-50 transition-colors rounded-none text-[9px] font-black">
+                                    <span class="material-symbols-outlined text-xs">thumb_up</span>
+                                    <span>${upCount}</span>
+                                </button>
+                                <button onclick="voteComment('${levelId}','${key}','down')" class="flex items-center space-x-0.5 px-1.5 py-0.5 border border-neutral-200 ${userDown ? 'bg-red-100 border-red-300' : 'bg-white'} hover:bg-neutral-50 transition-colors rounded-none text-[9px] font-black">
+                                    <span class="material-symbols-outlined text-xs">thumb_down</span>
+                                    <span>${downCount}</span>
+                                </button>
+                                ${isOwn ? `<button onclick="deleteComment('${levelId}','${key}')" class="px-1.5 py-0.5 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white transition-colors rounded-none text-[9px] font-black">
+                                    <span class="material-symbols-outlined text-xs">delete</span>
+                                </button>` : ''}
+                            </div>
+                        </div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function submitComment() {
+            const levelId = _detailLevelId;
+            if (!levelId) return;
+            const nickname = getPlayerNickname();
+            if (!nickname) {
+                showBottomHudText('Set a nickname first!', 2000);
+                return;
+            }
+            const input = document.getElementById('comment-input');
+            const text = input.value.trim();
+            if (!text || text.length < 1) {
+                showBottomHudText('Comment cannot be empty.', 1500);
+                return;
+            }
+            if (text.length > 200) {
+                showBottomHudText('Comment too long (max 200).', 1500);
+                return;
+            }
+
+            // Check if user already has a comment – max 1 per level
+            const ref = FIREBASE_DB.ref('community_levels/' + levelId + '/comments');
+            ref.once('value').then(snapshot => {
+                const data = snapshot.val() || {};
+                let alreadyCommented = false;
+                Object.keys(data).forEach(key => {
+                    if (data[key].author === nickname) alreadyCommented = true;
+                });
+                if (alreadyCommented) {
+                    showBottomHudText('You can only post 1 comment per level.', 2000);
+                    return;
+                }
+
+                // Check if user has completed this level
+                const lvl = _communityLevelsMeta.find(l => l.id === levelId);
+                const hasCompleted = lvl && lvl.completedPlayers && lvl.completedPlayers[nickname] === true;
+
+                const newComment = {
+                    author: nickname,
+                    text: text,
+                    completed: hasCompleted,
+                    createdAt: Date.now(),
+                    upvotes: {},
+                    downvotes: {}
+                };
+                const newRef = ref.push();
+                newRef.set(newComment).then(() => {
+                    input.value = '';
+                    showBottomHudText('Comment posted!', 1500);
+                    loadCommentsForLevel(levelId);
+                }).catch(err => {
+                    console.warn('FB comment error:', err);
+                    showBottomHudText('Failed to post comment.', 1500);
+                });
+            });
+        }
+
+        function voteComment(levelId, commentKey, direction) {
+            const nickname = getPlayerNickname();
+            if (!nickname) {
+                showBottomHudText('Set a nickname first!', 2000);
+                return;
+            }
+            const safe = nickname.replace(/[.#$\[\]]/g, '_');
+
+            if (direction === 'up') {
+                // Toggle upvote: if already upvoted, remove. Also remove downvote if exists.
+                const upRef = FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}/upvotes/${safe}`);
+                const downRef = FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}/downvotes/${safe}`);
+
+                upRef.once('value').then(snap => {
+                    const alreadyUp = snap.val() === true;
+                    if (alreadyUp) {
+                        upRef.remove().then(() => {
+                            loadCommentsForLevel(levelId);
+                        });
+                    } else {
+                        downRef.remove().then(() => {
+                            upRef.set(true).then(() => {
+                                loadCommentsForLevel(levelId);
+                            });
+                        });
+                    }
+                });
+            } else {
+                const downRef = FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}/downvotes/${safe}`);
+                const upRef = FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}/upvotes/${safe}`);
+
+                downRef.once('value').then(snap => {
+                    const alreadyDown = snap.val() === true;
+                    if (alreadyDown) {
+                        downRef.remove().then(() => {
+                            loadCommentsForLevel(levelId);
+                        });
+                    } else {
+                        upRef.remove().then(() => {
+                            downRef.set(true).then(() => {
+                                loadCommentsForLevel(levelId);
+                            });
+                        });
+                    }
+                });
+            }
+        }
+
+        function deleteComment(levelId, commentKey) {
+            if (!confirm('Delete this comment?')) return;
+            FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}`).remove().then(() => {
+                showBottomHudText('Comment deleted.', 1500);
+                loadCommentsForLevel(levelId);
+            }).catch(err => {
+                console.warn('FB delete comment error:', err);
+                showBottomHudText('Failed to delete.', 1500);
+            });
+        }
+
+        function playCommunityLevel(levelId) {
+            // Look up from meta cache for metadata
+            const meta = _communityLevelsMeta.find(l => l.id === levelId);
+            if (!meta) {
+                showBottomHudText('Level not found!', 2000);
+                return;
+            }
+
+            // Check if we already have the grid cached
+            if (_communityGridCache[levelId]) {
+                startCommunityLevel(levelId, meta, _communityGridCache[levelId]);
+                return;
+            }
+
+            // Load grid lazily from Firebase
+            showBottomHudText('Loading level…', 2000);
+            FIREBASE_DB.ref('community_levels/' + levelId + '/grid').once('value').then(snapshot => {
+                const gridData = snapshot.val();
+                if (!gridData || !Array.isArray(gridData) || gridData.length === 0) {
+                    showBottomHudText('Level data corrupted!', 2000);
+                    return;
+                }
+                // Cache it
+                _communityGridCache[levelId] = gridData;
+                startCommunityLevel(levelId, meta, gridData);
+            }).catch(err => {
+                console.warn('Firebase error (load grid):', err);
+                showBottomHudText('Failed to load level.', 2000);
+            });
+        }
+
+        function startCommunityLevel(levelId, meta, gridData) {
+            // Unique play count: record player in playHistory if nickname set
+            const nickname = getPlayerNickname();
+            if (nickname) {
+                const safe = nickname.replace(/[.#$\[\]]/g, '_');
+                FIREBASE_DB.ref('community_levels/' + levelId + '/playHistory/' + safe).set(true).catch(() => {});
+            }
+
+            // Hide custom hub / browse screens
+            document.getElementById('custom-hub-screen').classList.add('hidden');
+            document.getElementById('browse-screen').classList.add('hidden');
+            document.getElementById('editor-screen').classList.add('hidden');
+            document.getElementById('title-screen').classList.add('hidden');
+
+            // Save the custom level ID for leaderboard submission later
+            window._communityLevelId = levelId;
+
+            const name = meta.name;
+            setupLevelFromGrid(gridData, name, "Community level", false, false);
+            gameState = "playtest";
+            isInPlaytest = true;
+
+            document.getElementById('level-title-display').textContent = `COMMUNITY: ${name}`;
+            document.getElementById('level-title-display').classList.remove('hidden');
+
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-back-editor').classList.add('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
+            document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('btn-leaderboard-level').classList.remove('hidden');
+
+            if (levelHasMoveTiles) {
+                document.getElementById('moves-counter').classList.remove('hidden');
+                document.getElementById('moves-number').textContent = '∞';
+            } else {
+                document.getElementById('moves-counter').classList.add('hidden');
+            }
+
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+
+            playSfx('enter');
+            scaleAndRenderCanvas();
         }
 
         // ── ASK NICKNAME (same as before but with anti-tamper) ──
@@ -529,11 +1533,13 @@
         }
 
         // ── SUBMIT SCORE (server-trimmed to 500 now, we do client-side display) ──
+        // levelIndex: number for built-in levels, or string "custom_<firebaseId>" for community levels
         function submitScore(levelIndex, steps, callback) {
             const nickname = getPlayerNickname();
             if (!nickname) { if (callback) callback(null); return; }
 
-            const ref = FIREBASE_DB.ref(`leaderboards/level_${levelIndex}`);
+            const path = typeof levelIndex === 'string' ? `leaderboards/${levelIndex}` : `leaderboards/level_${levelIndex}`;
+            const ref = FIREBASE_DB.ref(path);
             ref.once('value').then(snapshot => {
                 const data = snapshot.val() || {};
                 const entries = Object.values(data);
@@ -583,7 +1589,9 @@
 
         // ── FETCH ALL (for pagination + rank search) ──
         function fetchAllLeaderboardEntries(levelIndex, callback) {
-            const ref = FIREBASE_DB.ref(`leaderboards/level_${levelIndex}`);
+            // levelIndex can be a number (built-in) or string (custom)
+            const path = typeof levelIndex === 'string' ? `leaderboards/${levelIndex}` : `leaderboards/level_${levelIndex}`;
+            const ref = FIREBASE_DB.ref(path);
             ref.once('value').then(snapshot => {
                 const data = snapshot.val() || {};
                 const entries = Object.values(data)
@@ -640,7 +1648,11 @@
 
         function openLeaderboardManual() {
             _leaderboardShouldExit = false;
-            showLeaderboard(activeLevelIndex);
+            if (window._communityLevelId) {
+                showLeaderboard('custom_' + window._communityLevelId);
+            } else {
+                showLeaderboard(activeLevelIndex);
+            }
         }
 
         function showLeaderboard(levelIndex) {
@@ -648,8 +1660,14 @@
             const listEl = document.getElementById('leaderboard-list');
             const titleEl = document.getElementById('leaderboard-title');
             const loadMoreArea = document.getElementById('leaderboard-load-more-area');
-            const levelName = LEVELS[levelIndex] ? LEVELS[levelIndex].name : `Level ${levelIndex+1}`;
-            titleEl.textContent = `LEADERBOARD — LEVEL ${levelIndex+1}: ${levelName}`;
+            let titleText;
+            if (typeof levelIndex === 'string') {
+                titleText = `LEADERBOARD — COMMUNITY LEVEL`;
+            } else {
+                const levelName = LEVELS[levelIndex] ? LEVELS[levelIndex].name : `Level ${levelIndex+1}`;
+                titleText = `LEADERBOARD — LEVEL ${levelIndex+1}: ${levelName}`;
+            }
+            titleEl.textContent = titleText;
             listEl.innerHTML = `<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>`;
             loadMoreArea.classList.add('hidden');
             overlay.classList.remove('hidden');
@@ -731,7 +1749,7 @@
                             <div class="flex items-center space-x-2 min-w-0">
                                 <span class="w-7 text-center text-neutral-500 font-mono shrink-0">${rankLabel}</span>
                                 <span class="w-5 text-center text-[10px] text-neutral-400 font-mono shrink-0">[${bracketRank}]</span>
-                                <span class="truncate ${yourEntry ? 'text-black' : 'text-neutral-700'}">${escapeHtml(entry.nickname)}</span>
+                                <span class="truncate cursor-pointer text-blue-600 hover:text-blue-800 hover:underline ${yourEntry ? 'text-black' : ''}" onclick="viewProfile('${escapeHtml(entry.nickname)}')">${escapeHtml(entry.nickname)}</span>
                                 ${yourEntry ? '<span class="text-[9px] text-amber-600 font-black tracking-widest ml-1">(YOU)</span>' : ''}
                                 ${yourRankText}
                             </div>
@@ -760,26 +1778,63 @@
 
         // ── Seal critical functions to prevent console cheating ──
         // Prevent re-defining of core game functions after load
-        window.addEventListener('load', function _sealGame() {
+        // Also patch the console to hide these functions if someone tries to log them
+        (function _sealPermanently() {
             const protect = [
                 'submitScore', 'claimNicknameInDb', 'checkNicknameAvailable',
+                'transferLeaderboardEntries',
+                'switchEditorTab', 'refreshCommunityLevels', 'filterCommunityLevels',
+                'likeCommunityLevel', 'playCommunityLevel',
                 'setPlayerNickname', 'askForNickname',
                 'setBodyColor', 'setEyeColor', 'resetCurrentLevel', 'undoMove',
                 'movePlayer', 'moveOverworldPlayer',
                 'triggerFailureState', 'checkVictory', 'checkRules',
                 'simulateMove', 'saveStateToHistory', 'playSfx',
-                'resetOverworldPosition', 'changeZoom'
+                'resetOverworldPosition', 'changeZoom',
+                'viewProfile', 'closeProfileModal', 'openEditProfile', 'saveProfileDesc',
+                'deleteCommunityLevel', 'voteComment', 'deleteComment', 'submitComment', 'likeCommunityLevel',
+                'toggleLikeLevel', 'openLevelDetail', 'closeCommentModal',
+                'openLeaderboardManual', 'showLeaderboard', 'loadMoreLeaderboard',
+                'confirmPublish', 'closePublishModal', 'openPublishModal',
+                'validateEditorGrid', 'playtestEditorGrid',
+                'exitPlaytestToEditor', 'exitMakeToHub', 'exitBrowseToHub',
+                'exitCustomHubToTitle', 'startGameFromTitle', 'exitToTitleFromGame',
+                'loadOverworld', 'loadLevel', 'setupLevelFromGrid',
+                'handleDirectionalInput', 'handleKeyDown'
             ];
-            protect.forEach(name => {
-                if (typeof window[name] === 'function') {
-                    try {
-                        Object.defineProperty(window, name, { writable: false, configurable: false });
-                    } catch(e) {}
+            
+            function doSeal() {
+                protect.forEach(name => {
+                    if (typeof window[name] === 'function') {
+                        try {
+                            Object.defineProperty(window, name, { 
+                                writable: false, 
+                                configurable: false 
+                            });
+                        } catch(e) {}
+                    }
+                });
+                try { Object.freeze(FIREBASE_DB); } catch(e) {}
+            }
+
+            // Seal immediately
+            doSeal();
+
+            // Re-seal on a timer to catch late re-defines
+            setInterval(doSeal, 500);
+
+            // Block re-defining via MutationObserver on window property changes
+            const originalDefineProperty = Object.defineProperty;
+            const protectedSet = new Set(protect);
+            Object.defineProperty = function(obj, prop, desc) {
+                if (obj === window && protectedSet.has(prop) && desc && (desc.writable !== false || desc.configurable !== false)) {
+                    // Silently refuse to make protected functions writable again
+                    desc.writable = false;
+                    desc.configurable = false;
                 }
-            });
-            // Also freeze the Firebase DB reference
-            try { Object.freeze(FIREBASE_DB); } catch(e) {}
-        });
+                return originalDefineProperty.call(Object, obj, prop, desc);
+            };
+        })();
 
         const ENTRANCE_MODE = 1;
         const LERP_SPEED = 0.22;
@@ -2292,6 +3347,8 @@ let currentSteps = 0;
             gameState = "title";
             document.getElementById('title-screen').classList.remove('hidden');
             document.getElementById('editor-screen').classList.add('hidden');
+            document.getElementById('custom-hub-screen').classList.add('hidden');
+            document.getElementById('browse-screen').classList.add('hidden');
             document.getElementById('btn-menu').classList.add('hidden');
             document.getElementById('btn-customize').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
@@ -2646,14 +3703,45 @@ let currentSteps = 0;
         //  CUSTOM LEVEL (EDITOR)
         // ───────────────────────────────────────────────────────────────
 
-        function openLevelEditor() {
+        function openCustomHub() {
             document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('custom-hub-screen').classList.remove('hidden');
+            document.getElementById('editor-screen').classList.add('hidden');
+            document.getElementById('browse-screen').classList.add('hidden');
+            gameState = "custom_hub";
+            isInPlaytest = false;
+
+            document.getElementById('btn-menu').classList.add('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            document.getElementById('btn-back-editor').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
+            document.getElementById('level-title-display').classList.add('hidden');
+            document.getElementById('overworld-stats').classList.add('hidden');
+            document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('zoom-controls').classList.add('hidden');
+            document.getElementById('mobile-dpad-container').classList.add('hidden');
+            document.getElementById('hud-coordinates').classList.add('hidden');
+            document.getElementById('moves-counter').classList.add('hidden');
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            hideBottomHudText();
+            scaleAndRenderCanvas();
+        }
+
+        function exitCustomHubToTitle() {
+            document.getElementById('custom-hub-screen').classList.add('hidden');
+            loadTitleScreen();
+            playSfx('enter');
+        }
+
+        function openMakeLevel() {
+            document.getElementById('custom-hub-screen').classList.add('hidden');
             document.getElementById('editor-screen').classList.remove('hidden');
             gameState = "editor";
             isInPlaytest = false;
             editorCustomGrid = null;
 
-            // Set default example grid
             const defaultGrid = [
                 "#########",
                 "#       #",
@@ -2662,7 +3750,6 @@ let currentSteps = 0;
                 "#########"
             ].join('\n');
             document.getElementById('editor-textarea').value = defaultGrid;
-
             document.getElementById('editor-status').innerHTML =
                 `<div class="text-neutral-400">Ready. Paste a grid and click Validate or Playtest.</div>`;
 
@@ -2684,6 +3771,48 @@ let currentSteps = 0;
             scaleAndRenderCanvas();
         }
 
+        function exitMakeToHub() {
+            document.getElementById('editor-screen').classList.add('hidden');
+            openCustomHub();
+            playSfx('enter');
+        }
+
+        function openBrowseLevels() {
+            document.getElementById('custom-hub-screen').classList.add('hidden');
+            document.getElementById('browse-screen').classList.remove('hidden');
+            gameState = "browse";
+            document.getElementById('btn-menu').classList.add('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            document.getElementById('btn-back-editor').classList.add('hidden');
+            document.getElementById('btn-respawn').classList.add('hidden');
+            document.getElementById('level-title-display').classList.add('hidden');
+            document.getElementById('overworld-stats').classList.add('hidden');
+            document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('zoom-controls').classList.add('hidden');
+            document.getElementById('mobile-dpad-container').classList.add('hidden');
+            document.getElementById('hud-coordinates').classList.add('hidden');
+            document.getElementById('moves-counter').classList.add('hidden');
+            document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+            hideBottomHudText();
+            if (_communityLevelsMeta.length === 0) {
+                refreshCommunityLevels();
+            }
+            scaleAndRenderCanvas();
+        }
+
+        function exitBrowseToHub() {
+            document.getElementById('browse-screen').classList.add('hidden');
+            openCustomHub();
+            playSfx('enter');
+        }
+
+        function openLevelEditor() {
+            // legacy – redirect to new hub
+            openCustomHub();
+        }
+
         function exitEditorToTitle() {
             document.getElementById('editor-screen').classList.add('hidden');
             loadTitleScreen();
@@ -2696,11 +3825,14 @@ let currentSteps = 0;
             const statusEl = document.getElementById('editor-status');
 
             if (!result.valid) {
+                _editorGridValidated = false;
                 statusEl.innerHTML = `<div class="editor-status-error">Error: ${result.error}</div>`;
                 return;
             }
 
-            statusEl.innerHTML = `<div class="editor-status-ok">Grid valid! ${result.grid.length}×${getMaxColumns(result.grid)}, spawn=(${result.playerPos.c},${result.playerPos.r}.${result.goalCount})target(s)+${result.boxCount}box(es).</div>`;
+            _editorGridValidated = true;
+            _editorLastGridHash = editorGridHash(text);
+            statusEl.innerHTML = `<div class="editor-status-ok">✅ Grid valid! ${result.grid.length}×${getMaxColumns(result.grid)}, spawn=(${result.playerPos.c},${result.playerPos.r}), ${result.goalCount} target(s) + ${result.boxCount} box(es). Now playtest & win to publish.</div>`;
             editorCustomGrid = result.grid;
         }
 
@@ -2803,21 +3935,42 @@ let currentSteps = 0;
 
         function exitPlaytestToEditor() {
             if (gameState === "playtest") {
-                // Return to editor
-                document.getElementById('editor-screen').classList.remove('hidden');
-                document.getElementById('btn-back-editor').classList.add('hidden');
-                document.getElementById('btn-back').classList.add('hidden');
-                document.getElementById('level-title-display').classList.add('hidden');
-                document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
-                document.getElementById('mobile-dpad-container').classList.add('hidden');
-                document.getElementById('hud-coordinates').classList.add('hidden');
-                document.getElementById('moves-counter').classList.add('hidden');
-                document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+                const hadCommunityLevel = !!window._communityLevelId;
+                window._communityLevelId = null;
+                
+                if (hadCommunityLevel) {
+                    // Return to browse screen
+                    document.getElementById('browse-screen').classList.remove('hidden');
+                    document.getElementById('btn-back-editor').classList.add('hidden');
+                    document.getElementById('btn-back').classList.add('hidden');
+                    document.getElementById('level-title-display').classList.add('hidden');
+                    document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+                    document.getElementById('mobile-dpad-container').classList.add('hidden');
+                    document.getElementById('hud-coordinates').classList.add('hidden');
+                    document.getElementById('moves-counter').classList.add('hidden');
+                    document.getElementById('bottom-hint-wrapper').classList.add('hidden');
+                    
+                    gameState = "browse";
+                    isInPlaytest = false;
+                    scaleAndRenderCanvas();
+                    playSfx('enter');
+                } else {
+                    // Return to editor
+                    document.getElementById('editor-screen').classList.remove('hidden');
+                    document.getElementById('btn-back-editor').classList.add('hidden');
+                    document.getElementById('btn-back').classList.add('hidden');
+                    document.getElementById('level-title-display').classList.add('hidden');
+                    document.getElementById('level-controls-group').classList.add('opacity-0', 'pointer-events-none');
+                    document.getElementById('mobile-dpad-container').classList.add('hidden');
+                    document.getElementById('hud-coordinates').classList.add('hidden');
+                    document.getElementById('moves-counter').classList.add('hidden');
+                    document.getElementById('bottom-hint-wrapper').classList.add('hidden');
 
-                gameState = "editor";
-                isInPlaytest = false;
-                scaleAndRenderCanvas();
-                playSfx('enter');
+                    gameState = "editor";
+                    isInPlaytest = false;
+                    scaleAndRenderCanvas();
+                    playSfx('enter');
+                }
             }
         }
 
@@ -3463,12 +4616,19 @@ let currentSteps = 0;
                         error.classList.remove('hidden');
                         return;
                     }
-                    claimNicknameInDb(val, oldName, () => {
-                        setPlayerNickname(val);
-                        modal.classList.add('hidden');
-                        title.textContent = origTitle;
-                        showBottomHudText('Renamed to ' + val + '!', 2000);
-                        buildLevelsSidebar();
+                    // ── Transfer all data from old name to new name (leaderboards, community levels, comments, description) ──
+                    transferLeaderboardEntries(oldName, val, () => {
+                        claimNicknameInDb(val, oldName, () => {
+                            setPlayerNickname(val);
+                            modal.classList.add('hidden');
+                            title.textContent = origTitle;
+                            // Also refresh community level meta cache so levels show new author name
+                            _communityLevelsMeta.forEach(lvl => {
+                                if (lvl.author === oldName) lvl.author = val;
+                            });
+                            showBottomHudText('Renamed to ' + val + '! All data transferred.', 3000);
+                            buildLevelsSidebar();
+                        });
                     });
                 });
             });
@@ -3591,9 +4751,36 @@ let currentSteps = 0;
                     buildLevelsSidebar();
                 }
 
-                // Leaderboard: submit score (only for regular levels, not playtest)
-                if (isNormalLevel) {
-                    const nickname = getPlayerNickname();
+                // Leaderboard: submit score
+                const nickname = getPlayerNickname();
+
+                if (gameState === "playtest" && window._communityLevelId) {
+                    // Mark player as completed in DB
+                    if (nickname) {
+                        const safe = nickname.replace(/[.#$\[\]]/g, '_');
+                        FIREBASE_DB.ref('community_levels/' + window._communityLevelId + '/completedPlayers/' + safe).set(true).catch(() => {});
+                        // Update local cache
+                        const lvl = _communityLevelsMeta.find(l => l.id === window._communityLevelId);
+                        if (lvl) {
+                            if (!lvl.completedPlayers) lvl.completedPlayers = {};
+                            lvl.completedPlayers[nickname] = true;
+                        }
+                    }
+                    // Community level – submit to custom leaderboard and show leaderboard
+                    if (!nickname) {
+                        askForNickname((nick) => {
+                            submitScore('custom_' + window._communityLevelId, currentSteps, () => {
+                                _leaderboardShouldExit = true;
+                                showLeaderboard('custom_' + window._communityLevelId);
+                            });
+                        });
+                    } else {
+                        submitScore('custom_' + window._communityLevelId, currentSteps, () => {
+                            _leaderboardShouldExit = true;
+                            showLeaderboard('custom_' + window._communityLevelId);
+                        });
+                    }
+                } else if (isNormalLevel) {
                     if (!nickname) {
                         // First time – ask for nickname, then submit and show leaderboard
                         askForNickname((nick) => {
@@ -3609,9 +4796,11 @@ let currentSteps = 0;
                         });
                     }
                 } else if (gameState === "playtest") {
-                    // For playtest, just show leaderboard directly (no Firebase submit needed for custom)
-                    _leaderboardShouldExit = true;
-                    showLeaderboard(activeLevelIndex);
+                    // Regular editor playtest – just show congratulations
+                    // Mark editor playtest as completed (required before publish)
+                    _editorPlaytestCompleted = true;
+                    document.getElementById('editor-status').innerHTML = '<div class="editor-status-ok">✅ Level completed! You can now publish.</div>';
+                    showBottomHudText('🎉 Level completed! (' + currentSteps + ' steps) — you can now publish.', 4000);
                 }
             }
         }
@@ -3940,15 +5129,15 @@ let currentSteps = 0;
         // ───────────────────────────────────────────────────────────────
 
         function handleKeyDown(e) {
-            // Don't intercept keys when typing in any input
-            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+            // Don't intercept keys when typing in any input or textarea
+            const tag = document.activeElement && document.activeElement.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
             // Also skip if the nickname modal is open
             if (!document.getElementById('nickname-modal').classList.contains('hidden')) return;
             // skip if sidebar open
             const isSidebarOpen = !document.getElementById('sidebar-menu').classList.contains('-translate-x-full');
             if (isSidebarOpen) return;
             
-            if (document.activeElement === document.getElementById('editor-textarea')) return;
             // Block game inputs when nickname modal is visible
             if (!document.getElementById('nickname-modal').classList.contains('hidden')) return;
 
@@ -4060,7 +5249,10 @@ let currentSteps = 0;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (gameState === "overworld") drawOverworldMap();
             else if (gameState === "level" || gameState === "playtest") drawLevelMap();
-            else {
+            else if (gameState === "browse" || gameState === "custom_hub" || gameState === "editor") {
+                ctx.fillStyle = '#dcdcdc';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
                 // Fallback: draw a blank with some text
                 ctx.fillStyle = '#dcdcdc';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
