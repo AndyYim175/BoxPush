@@ -367,8 +367,14 @@
                 <div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>
             </div>
             
+            <div id="leaderboard-load-more-area" class="hidden border-t border-black shrink-0">
+                <button id="btn-leaderboard-load-more" onclick="loadMoreLeaderboard()" class="w-full py-3 bg-white hover:bg-neutral-100 text-black font-black text-[10px] tracking-widest uppercase border-0 rounded-none transition-colors">
+                    LOAD MORE
+                </button>
+            </div>
+            
             <div class="p-3 border-t border-black flex justify-between text-[9px] font-black tracking-widest uppercase text-neutral-400 shrink-0">
-                <span>Top 50 per level</span>
+                <span>Rank (bracket) — Your Rank</span>
                 <span>Steps</span>
             </div>
         </div>
@@ -410,11 +416,22 @@
         firebase.initializeApp(firebaseConfig);
         const FIREBASE_DB = firebase.database();
 
-        // Max entries per level leaderboard
-        const LEADERBOARD_MAX = 50;
-        let _leaderboardShouldExit = false; // set true when opened after a win
+        // ───────────────────────────────────────────────────────────────
+        //  LEADERBOARD — PAGINATED, TIED RANKS, ANTI-CHEAT
+        // ───────────────────────────────────────────────────────────────
 
-        // Get or prompt for nickname
+        // Load 50 at a time
+        const LEADERBOARD_PAGE_SIZE = 50;
+        // No hard DB limit – "Load More" fetches more
+        let _leaderboardShouldExit = false; // set true when opened after a win
+        let _lbAllEntries = [];       // full sorted list from DB
+        let _lbDisplayedCount = 0;    // how many shown so far
+        let _lbYourRank = null;       // { absolute, bracket } after searching
+        let _lbYourSteps = null;
+
+        // ── anti-cheat: functions are sealed on window load so they can't be redefined from console ──
+
+        // ── GETTERS ──
         function getPlayerNickname() {
             const nick = localStorage.getItem('boxpush_nickname');
             if (nick) return nick;
@@ -425,11 +442,11 @@
             localStorage.setItem('boxpush_nickname', nick);
         }
 
+        // ── CLOSE ──
         function closeLeaderboardOnly() {
             document.getElementById('leaderboard-overlay').classList.add('hidden');
             if (_leaderboardShouldExit) {
                 _leaderboardShouldExit = false;
-                // Exit the level
                 if (gameState === "playtest") {
                     exitPlaytestToEditor();
                 } else if (gameState === "level") {
@@ -440,7 +457,6 @@
 
         function closeLeaderboardAndExit() {
             document.getElementById('leaderboard-overlay').classList.add('hidden');
-            // Exit to overworld if in a regular level
             if (gameState === "level") {
                 exitToOverworld();
             } else if (gameState === "playtest") {
@@ -448,18 +464,13 @@
             }
         }
 
+        // ── NICKNAME DB ──
         function checkNicknameAvailable(nickname, callback) {
-            // Check usernames node in Firebase
             const ref = FIREBASE_DB.ref('usernames/' + nickname.replace(/[.#$\[\]]/g, '_'));
             ref.once('value').then(snapshot => {
-                if (snapshot.exists()) {
-                    callback(false);
-                } else {
-                    callback(true);
-                }
+                callback(!snapshot.exists());
             }).catch(err => {
                 console.warn('Firebase error (check nickname):', err);
-                // If Firebase fails, allow the name
                 callback(true);
             });
         }
@@ -468,7 +479,6 @@
             const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
             const ref = FIREBASE_DB.ref('usernames/' + safeKey);
             ref.set({ timestamp: Date.now() }).then(() => {
-                // If there was an old nickname, free it
                 if (oldNickname) {
                     const oldKey = oldNickname.replace(/[.#$\[\]]/g, '_');
                     FIREBASE_DB.ref('usernames/' + oldKey).remove().catch(() => {});
@@ -480,6 +490,7 @@
             });
         }
 
+        // ── ASK NICKNAME (same as before but with anti-tamper) ──
         function askForNickname(callback) {
             const modal = document.getElementById('nickname-modal');
             const input = document.getElementById('nickname-input');
@@ -489,20 +500,15 @@
             modal.classList.remove('hidden');
             input.focus();
 
-            // Remove old listener, add new
             const btn = document.getElementById('nickname-submit');
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
 
             newBtn.addEventListener('click', () => {
                 const val = input.value.trim();
-                if (!val) { error.textContent = 'Nickname is required.';
-                    error.classList.remove('hidden'); return; }
-                if (val.length < 4 || val.length > 20) { error.textContent = 'Must be 4–20 characters.';
-                    error.classList.remove('hidden'); return; }
-                if (!/^[a-zA-Z0-9_-]+$/.test(val)) { error.textContent = 'Only letters, numbers, _, - allowed.';
-                    error.classList.remove('hidden'); return; }
-                // Check availability in DB first
+                if (!val) { error.textContent = 'Nickname is required.'; error.classList.remove('hidden'); return; }
+                if (val.length < 4 || val.length > 20) { error.textContent = 'Must be 4–20 characters.'; error.classList.remove('hidden'); return; }
+                if (!/^[a-zA-Z0-9_-]+$/.test(val)) { error.textContent = 'Only letters, numbers, _, - allowed.'; error.classList.remove('hidden'); return; }
                 checkNicknameAvailable(val, (available) => {
                     if (!available) {
                         error.textContent = 'Name "' + val + '" is already taken!';
@@ -522,13 +528,14 @@
             });
         }
 
+        // ── SUBMIT SCORE (server-trimmed to 500 now, we do client-side display) ──
         function submitScore(levelIndex, steps, callback) {
             const nickname = getPlayerNickname();
             if (!nickname) { if (callback) callback(null); return; }
 
             const ref = FIREBASE_DB.ref(`leaderboards/level_${levelIndex}`);
             ref.once('value').then(snapshot => {
-                const data = snapshot.val() || [];
+                const data = snapshot.val() || {};
                 const entries = Object.values(data);
 
                 // Check if player already has an entry
@@ -536,7 +543,6 @@
                 if (existingIdx !== -1) {
                     const existing = entries[existingIdx];
                     if (steps < existing.steps) {
-                        // Better score – update
                         const key = Object.keys(data)[existingIdx];
                         ref.child(key).update({ steps: steps, timestamp: Date.now() });
                     }
@@ -551,24 +557,19 @@
                     timestamp: Date.now()
                 };
 
-                // Push, then trim to LEADERBOARD_MAX
                 const newRef = ref.push();
                 newRef.set(newEntry).then(() => {
                     ref.once('value').then(snap2 => {
                         const allData = snap2.val() || {};
                         const allKeys = Object.keys(allData);
-                        if (allKeys.length > LEADERBOARD_MAX) {
-                            // Sort by steps asc, then timestamp asc, keep only top 50
-                            const sorted = allKeys.map(k => ({ key: k, ...allData[
-                                k] }))
-                                .sort((a, b) => a.steps - b.steps || a.timestamp - b
-                                .timestamp);
-                            const toRemove = sorted.slice(LEADERBOARD_MAX);
-                            const removals = toRemove.map(entry => ref.child(entry.key)
-                            .remove());
-                            Promise.all(removals).then(() => {
-                                if (callback) callback(newEntry);
-                            });
+                        // Trim to 500 max on server side
+                        const TRIM_LIMIT = 500;
+                        if (allKeys.length > TRIM_LIMIT) {
+                            const sorted = allKeys.map(k => ({ key: k, ...allData[k] }))
+                                .sort((a, b) => a.steps - b.steps || a.timestamp - b.timestamp);
+                            const toRemove = sorted.slice(TRIM_LIMIT);
+                            const removals = toRemove.map(entry => ref.child(entry.key).remove());
+                            Promise.all(removals).then(() => { if (callback) callback(newEntry); });
                         } else {
                             if (callback) callback(newEntry);
                         }
@@ -580,23 +581,62 @@
             });
         }
 
-        function fetchLeaderboard(levelIndex, callback) {
+        // ── FETCH ALL (for pagination + rank search) ──
+        function fetchAllLeaderboardEntries(levelIndex, callback) {
             const ref = FIREBASE_DB.ref(`leaderboards/level_${levelIndex}`);
             ref.once('value').then(snapshot => {
                 const data = snapshot.val() || {};
                 const entries = Object.values(data)
-                    .sort((a, b) => a.steps - b.steps || a.timestamp - b.timestamp)
-                    .slice(0, LEADERBOARD_MAX);
+                    .sort((a, b) => a.steps - b.steps || a.timestamp - b.timestamp);
                 callback(entries);
             }).catch(err => {
-                console.warn('Firebase error (fetch):', err);
+                console.warn('Firebase error (fetchAll):', err);
                 callback([]);
             });
         }
 
-        // ───────────────────────────────────────────────────────────────
-        //  LEADERBOARD UI
-        // ───────────────────────────────────────────────────────────────
+        // ── COMPUTE BRACKET RANKS ──
+        // Returns an array of { rank, steps, count } for each distinct step value
+        function computeBracketRanks(sortedEntries) {
+            if (sortedEntries.length === 0) return [];
+            const brackets = [];
+            let currentRank = 1;
+            let prevSteps = sortedEntries[0].steps;
+            let count = 1;
+
+            for (let i = 1; i < sortedEntries.length; i++) {
+                if (sortedEntries[i].steps === prevSteps) {
+                    count++;
+                } else {
+                    brackets.push({ rank: currentRank, steps: prevSteps, count });
+                    currentRank += count;
+                    prevSteps = sortedEntries[i].steps;
+                    count = 1;
+                }
+            }
+            brackets.push({ rank: currentRank, steps: prevSteps, count });
+            return brackets;
+        }
+
+        // ── FIND YOUR RANK VIA DFS (full table scan) ──
+        function findYourBracketRank(sortedEntries, nickname) {
+            if (!nickname) return null;
+            const brackets = computeBracketRanks(sortedEntries);
+            // Find which bracket the player's steps fall into
+            const playerEntry = sortedEntries.find(e => e.nickname === nickname);
+            if (!playerEntry) return null;
+
+            for (const b of brackets) {
+                if (b.steps === playerEntry.steps) {
+                    return { absolute: brackets.indexOf(b) + 1, bracket: b.rank, steps: playerEntry.steps };
+                }
+            }
+            return null;
+        }
+
+        // ── RENDER LEADERBOARD (paginated) ──
+        let _lbAllSorted = [];   // full sorted entries for current level
+        let _lbDisplayCount = 0; // how many rendered
 
         function openLeaderboardManual() {
             _leaderboardShouldExit = false;
@@ -607,32 +647,109 @@
             const overlay = document.getElementById('leaderboard-overlay');
             const listEl = document.getElementById('leaderboard-list');
             const titleEl = document.getElementById('leaderboard-title');
+            const loadMoreArea = document.getElementById('leaderboard-load-more-area');
             const levelName = LEVELS[levelIndex] ? LEVELS[levelIndex].name : `Level ${levelIndex+1}`;
             titleEl.textContent = `LEADERBOARD — LEVEL ${levelIndex+1}: ${levelName}`;
             listEl.innerHTML = `<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>`;
+            loadMoreArea.classList.add('hidden');
             overlay.classList.remove('hidden');
 
-            fetchLeaderboard(levelIndex, (entries) => {
-                if (entries.length === 0) {
+            // Reset pagination
+            _lbAllSorted = [];
+            _lbDisplayCount = 0;
+
+            // Store current level for load more
+            window._lbCurrentLevel = levelIndex;
+
+            fetchAllLeaderboardEntries(levelIndex, (allEntries) => {
+                _lbAllSorted = allEntries;
+
+                // Find your rank
+                const nickname = getPlayerNickname();
+                _lbYourRank = findYourBracketRank(allEntries, nickname);
+
+                if (allEntries.length === 0) {
                     listEl.innerHTML =
                         `<div class="text-xs font-bold text-neutral-400 py-4 text-center">No scores yet. Be the first!</div>`;
                     return;
                 }
-                let html = '';
-                entries.forEach((entry, idx) => {
-                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx+1}.`;
-                    const yourEntry = entry.nickname === getPlayerNickname();
-                    html += `<div class="flex items-center justify-between py-2 px-3 text-xs font-bold border-b border-neutral-100 ${yourEntry ? 'bg-yellow-50' : ''}">
-                                <div class="flex items-center space-x-2 min-w-0">
-                                    <span class="w-6 text-center text-neutral-500 font-mono">${medal}</span>
-                                    <span class="truncate ${yourEntry ? 'text-black' : 'text-neutral-700'}">${escapeHtml(entry.nickname)}</span>
-                                    ${yourEntry ? '<span class="text-[9px] text-amber-600 font-black tracking-widest ml-1">(YOU)</span>' : ''}
-                                </div>
-                                <span class="font-mono font-black">${entry.steps}</span>
-                            </div>`;
-                });
-                listEl.innerHTML = html;
+
+                // Show first page
+                _lbDisplayCount = Math.min(LEADERBOARD_PAGE_SIZE, allEntries.length);
+                renderLeaderboardRows(listEl, allEntries, 0, _lbDisplayCount);
+
+                // Show Load More if there's more
+                if (_lbDisplayCount < allEntries.length) {
+                    loadMoreArea.classList.remove('hidden');
+                }
             });
+        }
+
+        function loadMoreLeaderboard() {
+            const listEl = document.getElementById('leaderboard-list');
+            const loadMoreArea = document.getElementById('leaderboard-load-more-area');
+            const allEntries = _lbAllSorted;
+
+            const nextBatch = Math.min(_lbDisplayCount + LEADERBOARD_PAGE_SIZE, allEntries.length);
+            // Re-render entire list (simpler, still fast)
+            renderLeaderboardRows(listEl, allEntries, 0, nextBatch);
+            _lbDisplayCount = nextBatch;
+
+            if (_lbDisplayCount >= allEntries.length) {
+                loadMoreArea.classList.add('hidden');
+            }
+        }
+
+        function renderLeaderboardRows(listEl, sortedEntries, start, end) {
+            const nickname = getPlayerNickname();
+            const brackets = computeBracketRanks(sortedEntries);
+
+            // Build a map: steps -> bracket rank
+            const stepsToBracket = {};
+            for (const b of brackets) {
+                stepsToBracket[b.steps] = b.rank;
+            }
+
+            let html = '';
+            for (let i = start; i < end && i < sortedEntries.length; i++) {
+                const entry = sortedEntries[i];
+                const bracketRank = stepsToBracket[entry.steps] || (i + 1);
+                const yourEntry = entry.nickname === nickname;
+
+                // Show your rank info on your row (absolute rank = i+1, bracket = bracketRank)
+                let rankLabel;
+                if (i === 0) rankLabel = '🥇';
+                else if (i === 1) rankLabel = '🥈';
+                else if (i === 2) rankLabel = '🥉';
+                else rankLabel = `#${i+1}`;
+
+                const yourRankText = yourEntry && _lbYourRank
+                    ? `<span class="text-[9px] text-amber-600 font-black tracking-widest ml-1">(#${_lbYourRank.bracket})</span>`
+                    : '';
+
+                html += `<div class="flex items-center justify-between py-2 px-3 text-xs font-bold border-b border-neutral-100 ${yourEntry ? 'bg-yellow-50' : ''}">
+                            <div class="flex items-center space-x-2 min-w-0">
+                                <span class="w-7 text-center text-neutral-500 font-mono shrink-0">${rankLabel}</span>
+                                <span class="w-5 text-center text-[10px] text-neutral-400 font-mono shrink-0">[${bracketRank}]</span>
+                                <span class="truncate ${yourEntry ? 'text-black' : 'text-neutral-700'}">${escapeHtml(entry.nickname)}</span>
+                                ${yourEntry ? '<span class="text-[9px] text-amber-600 font-black tracking-widest ml-1">(YOU)</span>' : ''}
+                                ${yourRankText}
+                            </div>
+                            <span class="font-mono font-black shrink-0">${entry.steps}</span>
+                        </div>`;
+            }
+
+            // If there's a "your rank not displayed" note — show it
+            if (nickname && _lbYourRank && end < sortedEntries.length) {
+                const foundDisplayed = sortedEntries.slice(start, end).some(e => e.nickname === nickname);
+                if (!foundDisplayed) {
+                    html += `<div class="py-2 px-3 text-[10px] font-black text-amber-700 bg-amber-50 border-b border-neutral-100 text-center">
+                                Your rank: #${_lbYourRank.bracket} bracket · ${_lbYourRank.steps} steps
+                            </div>`;
+                }
+            }
+
+            listEl.innerHTML = html;
         }
 
         function escapeHtml(str) {
@@ -640,6 +757,29 @@
             div.textContent = str;
             return div.innerHTML;
         }
+
+        // ── Seal critical functions to prevent console cheating ──
+        // Prevent re-defining of core game functions after load
+        window.addEventListener('load', function _sealGame() {
+            const protect = [
+                'submitScore', 'claimNicknameInDb', 'checkNicknameAvailable',
+                'setPlayerNickname', 'askForNickname',
+                'setBodyColor', 'setEyeColor', 'resetCurrentLevel', 'undoMove',
+                'movePlayer', 'moveOverworldPlayer',
+                'triggerFailureState', 'checkVictory', 'checkRules',
+                'simulateMove', 'saveStateToHistory', 'playSfx',
+                'resetOverworldPosition', 'changeZoom'
+            ];
+            protect.forEach(name => {
+                if (typeof window[name] === 'function') {
+                    try {
+                        Object.defineProperty(window, name, { writable: false, configurable: false });
+                    } catch(e) {}
+                }
+            });
+            // Also freeze the Firebase DB reference
+            try { Object.freeze(FIREBASE_DB); } catch(e) {}
+        });
 
         const ENTRANCE_MODE = 1;
         const LERP_SPEED = 0.22;
