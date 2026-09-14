@@ -533,6 +533,41 @@
         firebase.initializeApp(firebaseConfig);
         const FIREBASE_DB = firebase.database();
 
+        // ── DISCORD WEBHOOK (set your URL here) ──
+        const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1549026779195248651/8b7IRXOJmrHqXfz1Evw6oJ94PJoMYHlKLouGAMeM_L3MFt0Ockzi7y0wJ0z45OQoIOWM"; // ← paste your Discord webhook URL
+
+        function sendDiscordWebhook(message) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_WEBHOOK_URL_HERE") return;
+            fetch(DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: message })
+            }).catch(() => {}); // silently fail
+        }
+
+        // ── COUNTER: total levels completed (stored in Firebase) ──
+        function getTotalCompletedCount(callback) {
+            const ref = FIREBASE_DB.ref('stats/totalCompetions');
+            ref.once('value').then(snapshot => {
+                let count = snapshot.val() || 0;
+                callback(count);
+            }).catch(() => callback(0));
+        }
+
+        function incrementTotalCompletedCount(callback) {
+            const ref = FIREBASE_DB.ref('stats/totalCompetions');
+            ref.transaction(current => {
+                return (current === null || typeof current !== 'number') ? 1 : current + 1;
+            }, (error, committed, snapshot) => {
+                if (committed && snapshot) {
+                    const newCount = snapshot.val() || 1;
+                    if (callback) callback(newCount);
+                } else {
+                    if (callback) callback(0);
+                }
+            });
+        }
+
         // ───────────────────────────────────────────────────────────────
         //  LEADERBOARD — PAGINATED, TIED RANKS, ANTI-CHEAT
         // ───────────────────────────────────────────────────────────────
@@ -1070,6 +1105,11 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 completedPlayers: {}  // map of player_id -> true
             }).then(() => {
                 document.getElementById('editor-status').innerHTML = '<div class="editor-status-ok">✅ Published!</div>';
+                    // ── Discord webhook: new community level published (always same text for now) ──
+                    incrementTotalCompletedCount(function(count) {
+                        const msg = `#${count}: **${nickname}** published a new community level: **${name}**!`;
+                        sendDiscordWebhook(msg);
+                    });
                 _communityLevelsMeta = [];
             }).catch(err => {
                 console.warn('Firebase error (publish):', err);
@@ -4880,10 +4920,19 @@ let currentSteps = 0;
                     buildLevelsSidebar();
                 }
 
-                // Leaderboard: submit score
+                // ── Discord webhook ──
                 const nickname = getPlayerNickname();
+                const playerName = nickname || 'Anonymous';
 
                 if (gameState === "playtest" && window._communityLevelId) {
+                    // Community level – increment and get the new count atomically
+                    const meta = _communityLevelsMeta.find(l => l.id === window._communityLevelId);
+                    const levelName = meta ? meta.name : 'Unknown';
+                    incrementTotalCompletedCount(function(count) {
+                        sendDiscordWebhook(
+                            `#${count}: **${playerName}** completed community level **${levelName}** in **${currentSteps}** moves!`
+                        );
+                    });
                     // Mark player as completed in DB
                     if (nickname) {
                         const safe = nickname.replace(/[.#$\[\]]/g, '_');
@@ -4910,6 +4959,18 @@ let currentSteps = 0;
                         });
                     }
                 } else if (isNormalLevel) {
+                    // Normal level – increment and get the new count atomically
+                    const levelDisplayName = LEVELS[activeLevelIndex] ? LEVELS[activeLevelIndex].name : `Level ${activeLevelIndex+1}`;
+                    incrementTotalCompletedCount(function(count) {
+                        // 1% chance of alternate text (same for now – edit manually)
+                        let msg;
+                        if (Math.random() < 0.99) {
+                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! <@&1548200913242693714>`;
+                        } else {
+                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! [1%] <@&1532354662215319672>`;
+                        }
+                        sendDiscordWebhook(msg);
+                    });
                     if (!nickname) {
                         // First time – ask for nickname, then submit and show leaderboard
                         askForNickname((nick) => {
@@ -4924,8 +4985,9 @@ let currentSteps = 0;
                             showLeaderboard(activeLevelIndex);
                         });
                     }
-                } else if (gameState === "playtest") {
-                    // Regular editor playtest – just show congratulations
+                } else if (gameState === "playtest" && !window._communityLevelId) {
+                    // Regular editor playtest – no Discord message, no counter increment
+                    
                     // Mark editor playtest as completed (required before publish)
                     _editorPlaytestCompleted = true;
                     document.getElementById('editor-status').innerHTML = '<div class="editor-status-ok">✅ Level completed! You can now publish.</div>';
