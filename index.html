@@ -320,6 +320,7 @@
                 <div class="bg-white border border-black p-3 text-[12px] font-black tracking-widest text-black/50">
                     <span class="block">Use: <span class="text-black">#</span> wall, <span class="text-black">@</span> player, <span class="text-black">$</span> box, <span class="text-black">.</span> target</span>
                     <span class="block mt-1">Also: <span class="text-black">x</span> trap, <span class="text-black">I</span> ice, <span class="text-black">A-D</span> big, <span class="text-black">E-H</span> ice, <span class="text-black">J-M</span> fire, <span class="text-black">N-Q</span> transparent, <span class="text-black">a-z</span> move tiles</span>
+                    <span class="block mt-1 text-green-700">Note: big, ice, fire, transparent structures all count as boxes now.</span>
                 </div>
                 <div class="flex items-center space-x-2">
                     <button onclick="validateEditorGrid()" class="flex-1 h-11 border border-black bg-white/90 text-black hover:bg-black hover:text-white transition-colors duration-150 font-black text-[10px] tracking-widest uppercase rounded-none" title="Validate grid (required before publish)">
@@ -3997,7 +3998,7 @@ let currentSteps = 0;
 
             _editorGridValidated = true;
             _editorLastGridHash = editorGridHash(text);
-            statusEl.innerHTML = `<div class="editor-status-ok">✅ Grid valid! ${result.grid.length}×${getMaxColumns(result.grid)}, spawn=(${result.playerPos.c},${result.playerPos.r}), ${result.goalCount} target(s) + ${result.boxCount} box(es). Now playtest & win to publish.</div>`;
+            statusEl.innerHTML = `<div class="editor-status-ok">✅ Grid valid! ${result.grid.length}×${getMaxColumns(result.grid)}, spawn=(${result.playerPos.c},${result.playerPos.r}), ${result.goalCount} target(s) + ${result.boxCount} box(es/structures). Now playtest & win to publish.</div>`;
             editorCustomGrid = result.grid;
         }
 
@@ -4030,6 +4031,7 @@ let currentSteps = 0;
                     if (ch === '@') { playerCount++;
                         playerPos = { r, c }; } else if (ch === '.') goalCount++;
                     else if (ch === '$' || ch === '*') boxCount++;
+                    else if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && !isDigit(ch)) boxCount++;
                     else if (ch === '#' || ch === ' ' || ch === 'x' || ch === 'I') { /* valid */ } else if (ch >= 'A' && ch <=
                         'Z') { /* valid structure letter */ } else if (ch >= 'a' && ch <= 'z') { /* valid move tile */ } else if (
                         ch >= '0' && ch <= '9') { /* valid digit */ } else {
@@ -4048,7 +4050,17 @@ let currentSteps = 0;
                 return { valid: false, error: 'No targets (.) found.' };
             }
             if (boxCount === 0) {
-                return { valid: false, error: 'No boxes ($) found.' };
+                // Also count big structure letters (A-Z except I, #, ., etc.) as boxes
+                let structureBoxCount = 0;
+                for (let r = 0; r < grid.length; r++) {
+                    for (let c = 0; c < grid[r].length; c++) {
+                        const ch = grid[r][c];
+                        if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && !isDigit(ch)) structureBoxCount++;
+                    }
+                }
+                if (structureBoxCount === 0) {
+                    return { valid: false, error: 'No boxes ($) or structures (A-Z) found.' };
+                }
             }
 
             return { valid: true, grid, playerPos, goalCount, boxCount };
@@ -4962,12 +4974,15 @@ let currentSteps = 0;
                     // Normal level – increment and get the new count atomically
                     const levelDisplayName = LEVELS[activeLevelIndex] ? LEVELS[activeLevelIndex].name : `Level ${activeLevelIndex+1}`;
                     incrementTotalCompletedCount(function(count) {
-                        // 1% chance of alternate text (same for now – edit manually)
+                        // If count is a multiple of 250, 25% chance of alternate text;
+                        // otherwise 1% chance.
+                        const isMilestone = (count % 250 === 0);
+                        const altChance = isMilestone ? 0.25 : 0.01;
                         let msg;
-                        if (Math.random() < 0.99) {
-                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! <@&1548200913242693714>`;
+                        if (Math.random() < altChance) {
+                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! [${isMilestone ? '25%' : '1%'}] <@&1532354662215319672>`;
                         } else {
-                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! [1%] <@&1532354662215319672>`;
+                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! <@&1548200913242693714>`;
                         }
                         sendDiscordWebhook(msg);
                     });
