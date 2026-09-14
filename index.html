@@ -5010,10 +5010,10 @@ let currentSteps = 0;
                         // If count is a multiple of 250, 25% chance of alternate text;
                         // otherwise 1% chance.
                         const isMilestone = (count % 250 === 0);
-                        const altChance = isMilestone ? 0.25 : 0.005;
+                        const altChance = isMilestone ? 0.1 : 0.001;
                         let msg;
                         if (Math.random() < altChance) {
-                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! [${isMilestone ? '25%' : '0.5%'}] <@&1532354662215319672>`;
+                            msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! [${isMilestone ? '10%' : '0.1%'}] <@&1532354662215319672>`;
                         } else {
                             msg = `#${count}: **${playerName}** completed Level ${activeLevelIndex+1} — **${levelDisplayName}** in **${currentSteps}** moves! <@&1548200913242693714>`;
                         }
