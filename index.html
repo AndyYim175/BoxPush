@@ -645,7 +645,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
         }
 
-        // ── TRANSFER ALL LEADERBOARD ENTRIES AND COMMUNITY LEVEL AUTHOR from old nickname to new nickname ──
+        // ── TRANSFER ALL DATA FROM OLD NICKNAME TO NEW NICKNAME ──
         function transferLeaderboardEntries(oldNickname, newNickname, callback) {
             const promises = [];
 
@@ -656,8 +656,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 Object.keys(allLevels).forEach(levelKey => {
                     const levelRef = FIREBASE_DB.ref('leaderboards/' + levelKey);
                     const levelData = allLevels[levelKey];
-                    const entryKeys = Object.keys(levelData);
-                    entryKeys.forEach(entryKey => {
+                    Object.keys(levelData).forEach(entryKey => {
                         const entry = levelData[entryKey];
                         if (entry.nickname === oldNickname) {
                             promises.push(levelRef.child(entryKey).update({ nickname: newNickname }));
@@ -667,7 +666,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
             promises.push(lbPromise);
 
-            // 2) Transfer community level authors
+            // 2) Transfer community level authors + completedPlayers + playHistory + likes
             const clRef = FIREBASE_DB.ref('community_levels');
             const clPromise = clRef.once('value').then(snapshot => {
                 const allLevels = snapshot.val() || {};
@@ -676,11 +675,29 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     if (lvl.author === oldNickname) {
                         promises.push(clRef.child(levelKey).update({ author: newNickname }));
                     }
+                    // completedPlayers
+                    const completedPlayers = lvl.completedPlayers || {};
+                    if (completedPlayers[oldNickname] === true) {
+                        promises.push(clRef.child(levelKey).child('completedPlayers/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
+                        promises.push(clRef.child(levelKey).child('completedPlayers/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
+                    }
+                    // playHistory
+                    const playHistory = lvl.playHistory || {};
+                    if (playHistory[oldNickname] === true) {
+                        promises.push(clRef.child(levelKey).child('playHistory/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
+                        promises.push(clRef.child(levelKey).child('playHistory/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
+                    }
+                    // likes map
+                    const likes = lvl.likes || {};
+                    if (likes[oldNickname] === true) {
+                        promises.push(clRef.child(levelKey).child('likes/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
+                        promises.push(clRef.child(levelKey).child('likes/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
+                    }
                 });
             });
             promises.push(clPromise);
 
-            // 3) Transfer community level comment authors
+            // 3) Transfer community level comment authors + upvotes/downvotes
             const commentPromise = FIREBASE_DB.ref('community_levels').once('value').then(snapshot => {
                 const allLevels = snapshot.val() || {};
                 Object.keys(allLevels).forEach(levelKey => {
@@ -689,23 +706,31 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     Object.keys(comments).forEach(commentKey => {
                         const comment = comments[commentKey];
                         if (comment.author === oldNickname) {
-                            promises.push(
-                                FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey)
-                                .update({ author: newNickname })
-                            );
+                            promises.push(FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey).update({ author: newNickname }));
+                        }
+                        const upvotes = comment.upvotes || {};
+                        if (upvotes[oldNickname] === true) {
+                            promises.push(FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey + '/upvotes/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
+                            promises.push(FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey + '/upvotes/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
+                        }
+                        const downvotes = comment.downvotes || {};
+                        if (downvotes[oldNickname] === true) {
+                            promises.push(FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey + '/downvotes/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
+                            promises.push(FIREBASE_DB.ref('community_levels/' + levelKey + '/comments/' + commentKey + '/downvotes/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
                         }
                     });
                 });
             });
             promises.push(commentPromise);
 
-            // 4) Transfer usernames entry (description, etc.)
+            // 4) Transfer usernames entry (description, avatar settings, etc.)
             const oldSafe = oldNickname.replace(/[.#$\[\]]/g, '_');
             const newSafe = newNickname.replace(/[.#$\[\]]/g, '_');
-            const descPromise = FIREBASE_DB.ref('usernames/' + oldSafe + '/desc').once('value').then(snap => {
-                const desc = snap.val();
-                if (desc) {
-                    promises.push(FIREBASE_DB.ref('usernames/' + newSafe + '/desc').set(desc));
+            const descPromise = FIREBASE_DB.ref('usernames/' + oldSafe).once('value').then(snap => {
+                const userData = snap.val();
+                if (userData) {
+                    promises.push(FIREBASE_DB.ref('usernames/' + newSafe).set({ ...userData, timestamp: Date.now() }));
+                    promises.push(FIREBASE_DB.ref('usernames/' + oldSafe).remove());
                 }
             });
             promises.push(descPromise);
@@ -918,6 +943,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         // The full likes map (per-user) is only fetched when the user clicks the like button.
         let _communityLevelsMeta = [];      // { id, name, author, likesCount, createdAt, playCount } – no grid data
         let _communityGridCache = {};       // id -> grid array (loaded on demand)
+        let _communityDisplayCount = 15;    // how many to show currently (lazy load via scroll)
 
         function switchEditorTab(tab) {
             // Only "create" tab exists now
@@ -1056,6 +1082,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             listEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-8 text-center">Loading…</div>';
             _communityLevelsMeta = [];
             _communityGridCache = {};
+            _communityDisplayCount = 15;
 
             const ref = FIREBASE_DB.ref('community_levels');
             ref.orderByChild('createdAt').limitToLast(200).once('value').then(snapshot => {
@@ -1110,6 +1137,14 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     lvl.author.toLowerCase().includes(query)
                 );
             }
+            
+            // Lazy-load: reset display count on new search, otherwise cap
+            if (query) {
+                _communityDisplayCount = filtered.length; // show all when searching
+            } else {
+                _communityDisplayCount = Math.min(_communityDisplayCount, filtered.length);
+            }
+            const displaySlice = filtered.slice(0, _communityDisplayCount);
 
             if (filtered.length === 0) {
                 listEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-8 text-center">No levels found' + (query ? ' matching "' + escapeHtml(query) + '".' : ' yet. Be the first to publish!') + '</div>';
@@ -1125,7 +1160,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             // and queries Firebase only on click. This avoids downloading the full likes map
             // for every level.
             
-            filtered.forEach(lvl => {
+            displaySlice.forEach(lvl => {
                 const dateStr = lvl.createdAt ? new Date(lvl.createdAt).toLocaleDateString() : '?';
                 const isOwn = nickname && lvl.author === nickname;
                 const clearRateStr = lvl.clearRate.toFixed(2) + '%';
@@ -1739,14 +1774,11 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             // Reset pagination
             _lbAllSorted = [];
             _lbDisplayCount = 0;
-
-            // Store current level for load more
             window._lbCurrentLevel = levelIndex;
 
             fetchAllLeaderboardEntries(levelIndex, (allEntries) => {
                 _lbAllSorted = allEntries;
 
-                // Find your rank
                 const nickname = getPlayerNickname();
                 _lbYourRank = findYourBracketRank(allEntries, nickname);
 
@@ -1756,14 +1788,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     return;
                 }
 
-                // Show first page
-                _lbDisplayCount = Math.min(LEADERBOARD_PAGE_SIZE, allEntries.length);
-                renderLeaderboardRows(listEl, allEntries, 0, _lbDisplayCount);
-
-                // Show Load More if there's more
-                if (_lbDisplayCount < allEntries.length) {
-                    loadMoreArea.classList.remove('hidden');
-                }
+                // Render ALL entries sorted once — no pagination needed
+                renderLeaderboardRows(listEl, allEntries, 0, allEntries.length);
+                loadMoreArea.classList.add('hidden');
             });
         }
 
@@ -3854,10 +3881,31 @@ let currentSteps = 0;
             playSfx('enter');
         }
 
+        // Scroll-based lazy loading for community level list
+        let _communityListScrollHandler = null;
+        function setupCommunityScrollListener() {
+            const listEl = document.getElementById('community-level-list');
+            if (_communityListScrollHandler) {
+                listEl.removeEventListener('scroll', _communityListScrollHandler);
+            }
+            _communityListScrollHandler = function() {
+                if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 100) {
+                    const total = _communityLevelsMeta.length;
+                    if (_communityDisplayCount < total) {
+                        _communityDisplayCount = Math.min(_communityDisplayCount + 15, total);
+                        filterCommunityLevels();
+                    }
+                }
+            };
+            listEl.addEventListener('scroll', _communityListScrollHandler);
+        }
+
         function openBrowseLevels() {
             document.getElementById('custom-hub-screen').classList.add('hidden');
             document.getElementById('browse-screen').classList.remove('hidden');
             gameState = "browse";
+            _communityDisplayCount = 15;
+            setupCommunityScrollListener();
             document.getElementById('btn-menu').classList.add('hidden');
             document.getElementById('btn-customize').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
