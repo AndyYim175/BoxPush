@@ -1039,6 +1039,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     _editorGridValidated = false;
                     _editorLastGridHash = '';
                     _editorPlaytestCompleted = false;
+                    _justLoaded = false;
                     const statusEl = document.getElementById('editor-status');
                     if (statusEl && !statusEl.innerHTML.includes('⏳')) {
                         statusEl.innerHTML = '<div class="editor-status-info">⚠️ Grid changed – re-validate and complete before publishing.</div>';
@@ -1699,6 +1700,10 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 if (callback) callback(null);
                 return;
             }
+            if (_justLoaded) {
+                if (callback) callback(null);
+                return;
+            }
             if (steps !== currentSteps) {
                 if (callback) callback(null);
                 return;
@@ -1938,6 +1943,29 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             return div.innerHTML;
         }
 
+        // ── Hidden integrity token ──
+        // Each frame the game loop checks this token. If it was cleared from console,
+        // the game re-locks the victory flag.
+        let _integrityToken = Symbol('boxpush_integrity');
+        let _lastIntegrityValue = _integrityToken;
+
+        let _doSealFn = null; // assigned inside the IIFE below
+
+        function _verifyIntegrity() {
+            // If the token was tampered with (e.g. console re-declared the Symbol),
+            // trigger a failure
+            if (!_integrityToken || _integrityToken !== _lastIntegrityValue) {
+                if (!isLevelFailed && gameState !== 'title' && gameState !== 'overworld') {
+                    isLevelFailed = true;
+                    isLevelSolved = false;
+                }
+                _lastIntegrityValue = Symbol('boxpush_integrity_reset');
+                _integrityToken = _lastIntegrityValue;
+                return false;
+            }
+            return true;
+        }
+
         // ── Seal critical functions to prevent console cheating ──
         // Prevent re-defining of core game functions after load
         // Also patch the console to hide these functions if someone tries to log them
@@ -1973,7 +2001,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             // Prevent console from re-defining the victory function itself
             function _sealCheckVictory() { /* no-op re-sealer */ }
             
-            function doSeal() {
+            _doSealFn = function() {
                 protect.forEach(name => {
                     if (typeof window[name] === 'function') {
                         try {
@@ -1990,13 +2018,13 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 try { delete window.isLevelSolved; } catch(e) {}
                 try { delete window.isLevelFailed; } catch(e) {}
                 try { Object.freeze(FIREBASE_DB); } catch(e) {}
-            }
+            };
 
             // Seal immediately
-            doSeal();
+            _doSealFn();
 
             // Re-seal on a timer to catch late re-defines
-            setInterval(doSeal, 500);
+            setInterval(_doSealFn, 500);
 
             // Block re-defining via MutationObserver on window property changes
             const originalDefineProperty = Object.defineProperty;
@@ -3805,6 +3833,11 @@ let currentSteps = 0;
                 }
             }
 
+            // Mark that the level was just loaded – prevents checkVictory from
+            // triggering on initial grid setup (e.g. if a box already sits on a target)
+            _justLoaded = true;
+            setTimeout(() => { _justLoaded = false; }, 100);
+
             computeFloorMap();
             computeYellowWallComponents();
 
@@ -4099,6 +4132,9 @@ let currentSteps = 0;
         function playtestEditorGrid() {
             const text = document.getElementById('editor-textarea').value;
             const result = parseAndValidateGrid(text);
+            
+            // Reset the playtest completion flag on each new playtest
+            _editorPlaytestCompleted = false;
 
             if (!result.valid) {
                 const statusEl = document.getElementById('editor-status');
@@ -4148,6 +4184,14 @@ let currentSteps = 0;
 
         function exitPlaytestToEditor() {
             if (gameState === "playtest") {
+                // Clean up state flags – prevent stale "solved" state from
+                // triggering on next play test
+                _justLoaded = false;
+                isLevelSolved = false;
+                isLevelFailed = false;
+                if (!window._communityLevelId) {
+                    _editorPlaytestCompleted = false;
+                }
                 const hadCommunityLevel = !!window._communityLevelId;
                 window._communityLevelId = null;
                 
@@ -4710,6 +4754,7 @@ let currentSteps = 0;
 
         function movePlayer(dir) {
             if (isLevelFailed || isLevelSolved) return;
+            if (_justLoaded) return; // Don't allow moves during initial load window
             if (levelHasMoveTiles && _remainingMoves <= 0) return;
             let dr = 0,
                 dc = 0;
@@ -4933,9 +4978,33 @@ let currentSteps = 0;
             }
         }
 
+        let _justLoaded = false;  // set true in setupLevelFromGrid, cleared after 100ms
+
+        // ── Runtime integrity check ──
+        // Verifies that critical state-modifying functions haven't been swapped
+        // and that internal counters match what the game expects.
+        function _runtimeIntegrityCheck() {
+            // If isLevelSolved is true but currentSteps is still 0 and we've made no move,
+            // something is wrong (cheat/manual call).
+            if (isLevelSolved && currentSteps === 0 && !_justLoaded && historyStack.length === 0 && activeGrid.length > 0) {
+                // Force failure to invalidate the state
+                isLevelSolved = false;
+                isLevelFailed = true;
+                return false;
+            }
+            return true;
+        }
+
         function checkVictory() {
+            if (_justLoaded) return;
             if (isLevelFailed) return;
             if (isLevelSolved) return; // Already solved — prevent re-triggering submitScore
+
+            // Runtime integrity check – catches console-set isLevelSolved=true
+            if (!_runtimeIntegrityCheck()) {
+                triggerFailureState();
+                return;
+            }
 
             let totalGoals = 0;
             for (let r = 0; r < originalGrid.length; r++) {
@@ -5439,6 +5508,11 @@ let currentSteps = 0;
         // ───────────────────────────────────────────────────────────────
 
         function gameTick() {
+            // Runtime integrity check – catches console tampering with isLevelSolved
+            if (!_verifyIntegrity()) {
+                // Re-seal functions that may have been unsealed
+                if (typeof _doSealFn === 'function') _doSealFn();
+            }
             updateTick();
             drawCanvas();
             requestAnimationFrame(gameTick);
