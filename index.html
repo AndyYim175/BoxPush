@@ -592,7 +592,37 @@
         }
 
         function setPlayerNickname(nick) {
-            localStorage.setItem('boxpush_nickname', nick);
+            const sanitized = sanitizeNickname(nick);
+            if (sanitized !== nick) {
+                showBottomHudText('Nickname "' + nick + '" changed to "' + sanitized + '" (inappropriate).', 4000);
+            }
+            localStorage.setItem('boxpush_nickname', sanitized);
+            return sanitized;
+        }
+
+        // ── SWEAR FILTER ──
+        const SWEAR_PREFIXES = ['nig', 'fuc', 'shi'];
+        function sanitizeNickname(nick) {
+            if (!nick) return nick;
+            const lower = nick.toLowerCase();
+            for (const prefix of SWEAR_PREFIXES) {
+                if (lower.startsWith(prefix)) {
+                    // Generate a safe random name like "Player_42"
+                    const safeName = 'Player_' + Math.floor(Math.random() * 90000 + 10000);
+                    return safeName;
+                }
+            }
+            return nick;
+        }
+
+        function checkAndSanitizeNickname() {
+            const nick = getPlayerNickname();
+            if (!nick) return;
+            const sanitized = sanitizeNickname(nick);
+            if (sanitized !== nick) {
+                setPlayerNickname(sanitized);
+                showBottomHudText('Your nickname was changed to "' + sanitized + '" — please re-set it.', 4000);
+            }
         }
 
         // ── CLOSE ──
@@ -4923,6 +4953,9 @@ let currentSteps = 0;
             if (isWon && !isLevelFailed) {
                 isLevelSolved = true;
                 playSfx('win');
+
+                // Check nickname for swears after every completion
+                checkAndSanitizeNickname();
 
                 // Only mark as completed if not a custom playtest
                 const isNormalLevel = gameState !== "playtest" && LEVELS[activeLevelIndex] && !LEVELS[activeLevelIndex].special;
