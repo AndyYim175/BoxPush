@@ -318,7 +318,7 @@
                     <div class="text-neutral-400">Ready. Paste a grid and click Validate or Playtest.</div>
                 </div>
                 <div class="bg-white border border-black p-3 text-[12px] font-black tracking-widest text-black/50">
-                    <span class="block">Use: <span class="text-black">#</span> wall, <span class="text-black">@</span> player, <span class="text-black">$</span> box, <span class="text-black">.</span> target</span>
+                    <span class="block">Use: <span class="text-black">#</span> wall, <span class="text-black">@</span> player, <span class="text-black">$</span> box, <span class="text-black">.</span> target, <span class="text-black">Z</span> freeze target</span>
                     <span class="block mt-1">Also: <span class="text-black">x</span> trap, <span class="text-black">I</span> ice, <span class="text-black">A-D</span> big, <span class="text-black">E-H</span> ice, <span class="text-black">J-M</span> fire, <span class="text-black">N-Q</span> transparent, <span class="text-black">a-z</span> move tiles</span>
                     <span class="block mt-1 text-green-700">Note: big, ice, fire, transparent structures all count as boxes now.</span>
                 </div>
@@ -2084,7 +2084,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         function isStructureLetter(char) {
             if (!char) return false;
             if (char < 'A' || char > 'Z') return false;
-            if (char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ' || char === 'I')
+            if (char === '#' || char === '$' || char === '*' || char === '+' || char === '.' || char === ' ' || char === 'I' || char === 'Z')
                 return false;
             return true;
         }
@@ -3031,60 +3031,73 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "####.. IIx#",
                 "###########",
             ]
-        }, {
-            name: "Test Level 1",
-            special: true,
-            hint: "Test everything!",
+        },
+        {
+            name: "New zone, new things.",
             grid: [
-                "################",
-                "#@             #",
-                "#         0 .  #",
-                "# $ $ AA  1 .  #",
-                "#         2 .  #",
-                "# $ $ A   3 .  #",
-                "#     A   4 .  #",
-                "#              #",
-                "################"
+                "###########",
+                "######   .#",
+                "#       Z##",
+                "#   AA    #",
+                "#         #",
+                "# @    #$ #",
+                "#     ##  #",
+                "###########",
             ]
-        }, {
-            name: "Test Level 2",
-            special: true,
-            hint: "Test everything!",
+        },
+        {
+            name: "Communtiy-like!.",
             grid: [
-                "#########################",
-                "#@                      #",
-                "#      A  0 I I a f k p #",
-                "# $ $ AA  1 I   b g l q #",
-                "#         2 I   c h m r #",
-                "# $ $ A   3     d i n s #",
-                "#     A   4     e j o t #",
-                "#                       #",
-                "# u x AA .              #",
-                "# v y    .              #",
-                "# w z    .              #",
-                "#                       #",
-                "#########################"
+                "###########",
+                "###########",
+                "### $. ####",
+                "### $Z  #.#",
+                "###@$.  #$#",
+                "######    #",
+                "###########",
+                "###########",
             ]
-        }, {
-            name: "Test Level 3",
-            special: true,
-            hint: "Test everything!",
+        },
+        {
+            name: "Five block one goal",
             grid: [
-                "#########################",
-                "#@                        #",
-                "#      A  0 I I a f k p . #",
-                "# $ $ AA  1 I   b g l q . #",
-                "#         2 I   c h m r . #",
-                "# $ $ A   3     d i n s . #",
-                "#     A   4     e j o t . #",
-                "#                         #",
-                "# u x AA E E L L OPOP   #",
-                "# v y      E   L        #",
-                "# w z    EE  LL  OO    x#",
-                "#                     x.#",
-                "#########################"
+                "###########",
+                "#         #",
+                "#       . #",
+                "#  E      #",
+                "#  HE     #",
+                "# @ HE    #",
+                "#         #",
+                "###########",
             ]
-        }, ];
+        },
+        {
+            name: "yo please stop sliding",
+            grid: [
+                "###########",
+                "#      x ###",
+                "#  NN  #I$.#",
+                "##       ###",
+                "##   Z x   #",
+                "## OOO   @ #",
+                "##        ##",
+                "###########",
+            ]
+        },
+                {
+            name: "ok we locked in",
+            grid: [
+                "########",
+                "# x ####",
+                "#xH  x.#",
+                "#xEH  x#",
+                "#  EH Z#",
+                "# @    #",
+                "# .  Z #",
+                "########",
+            ]
+        },
+        ];
 
         const LAUNCH_TARGET = -1;
 
@@ -3143,6 +3156,11 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         // ───────────────────────────────────────────────────────────────
 
         const OVERWORLD_COMPRESSED = [
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
+            "#[72] [3]#[30]",
             "#[72] [3]#[30]",
             "#[72] [3]#[30]",
             "#[72] [3]#[30]",
@@ -3218,10 +3236,10 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "30,21": { type: "level", index: 15, label: "16" },
                 "32,21": { type: "level", index: 16, label: "17" },
                 "34,21": { type: "level", index: 17, label: "18" },
-                "32,25": { type: "level", index: 60, label: "T1" },
+                //"32,25": { type: "level", index: 60, label: "T1" },
 
-                "34,25": { type: "info", text: "This is a test level, you can use it to test all previous mechanics." },
-                "30,25": { type: "info", text: "They do not count towards regular progress on completion." },
+                //"34,25": { type: "info", text: "This is a test level, you can use it to test all previous mechanics." },
+                //"30,25": { type: "info", text: "They do not count towards regular progress on completion." },
 
                 "32,23": { type: "info", text: "Good luck on #19 and #20 ;)" },
                 "30,23": { type: "level", index: 18, label: "19" },
@@ -3265,7 +3283,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "47,20": { type: "info", text: "Feature time!" },
                 "57,20": { type: "level", index: 34, label: "35" },
                 "57,18": { type: "level", index: 35, label: "36" },
-                "60,20": { type: "level", index: 61, label: "T2" },
+                //"60,20": { type: "level", index: 61, label: "T2" },
                 "63,20": { type: "level", index: 36, label: "37" },
                 "63,18": { type: "level", index: 37, label: "38" },
 
@@ -3310,10 +3328,16 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "68,31": { type: "level", index: 58, label: "59" },
                 "68,29": { type: "level", index: 59, label: "60" },
 
-                "68,25": { type: "level", index: 62, label: "T3" },
+                //"68,25": { type: "level", index: 62, label: "T3" },
 
                 "73,33": { type: "lock", required: 60 },
-                "73,35": { type: "info", text: "GG! You win! Thanks for playing!" },
+                "73,35": { type: "info", text: "GG! Next area." },
+                
+                "73,37": { type: "level", index: 60, label: "61" },
+                "73,38": { type: "level", index: 61, label: "62" },
+                "73,39": { type: "level", index: 62, label: "63" },
+                "73,40": { type: "level", index: 63, label: "64" },
+                "73,41": { type: "level", index: 64, label: "65" },
             }
         };
 
@@ -3484,18 +3508,18 @@ let currentSteps = 0;
             const savedEye = localStorage.getItem('boxpush_custom_eye');
             if (savedEye) playerCustomEye = savedEye;
 
-            const savedOverworldPos = localStorage.getItem('boxpush_overworld_pos');
-            if (savedOverworldPos) {
-                try {
-                    overworldPlayerPos = JSON.parse(savedOverworldPos);
+            const savedOverworldPos = (LAUNCH_TARGET >= 1 && LAUNCH_TARGET <= LEVELS.length) ? null : localStorage.getItem('boxpush_overworld_pos');
+if (savedOverworldPos) {
+    try {
+        overworldPlayerPos = JSON.parse(savedOverworldPos);
                     visualOverworldPlayer.x = overworldPlayerPos.c;
                     visualOverworldPlayer.y = overworldPlayerPos.r;
                     visualOverworldPlayer.targetX = overworldPlayerPos.c;
                     visualOverworldPlayer.targetY = overworldPlayerPos.r;
                     overworldCamera.x = overworldPlayerPos.c;
                     overworldCamera.y = overworldPlayerPos.r;
-                } catch (e) {}
-            }
+} catch (e) {}
+}
 
             for (let r = 0; r < overworldGrid.length; r++) {
                 for (let c = 0; c < overworldGrid[r].length; c++) {
@@ -3526,9 +3550,9 @@ let currentSteps = 0;
             computeLockComponents();
 
             if (LAUNCH_TARGET === 0) {
-                loadOverworld();
+                launchDirectOverworld();
             } else if (LAUNCH_TARGET > 0 && LAUNCH_TARGET <= LEVELS.length) {
-                loadLevel(LAUNCH_TARGET - 1);
+                launchDirectLevel(LAUNCH_TARGET - 1);
             } else {
                 loadTitleScreen();
             }
@@ -3582,6 +3606,36 @@ let currentSteps = 0;
             document.getElementById('btn-back-title').classList.remove('hidden');
             loadOverworld();
             playSfx('enter');
+        }
+
+        // ── LAUNCH_TARGET direct entry ──
+        // Boots straight into a level (or the overworld) instead of the title screen.
+        function launchDirectLevel(index) {
+            document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('custom-hub-screen').classList.add('hidden');
+            document.getElementById('editor-screen').classList.add('hidden');
+            document.getElementById('browse-screen').classList.add('hidden');
+            document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.add('hidden');
+            document.getElementById('level-title-display').classList.remove('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            loadLevel(index);
+        }
+
+        function launchDirectOverworld() {
+            document.getElementById('title-screen').classList.add('hidden');
+            document.getElementById('custom-hub-screen').classList.add('hidden');
+            document.getElementById('editor-screen').classList.add('hidden');
+            document.getElementById('browse-screen').classList.add('hidden');
+            document.getElementById('btn-menu').classList.remove('hidden');
+            document.getElementById('btn-customize').classList.remove('hidden');
+            document.getElementById('level-title-display').classList.remove('hidden');
+            document.getElementById('mobile-dpad-container').classList.remove('hidden');
+            document.getElementById('hud-coordinates').classList.remove('hidden');
+            document.getElementById('btn-back-title').classList.remove('hidden');
+            loadOverworld();
         }
 
         function exitToTitleFromGame() {
@@ -3863,6 +3917,7 @@ let currentSteps = 0;
                         visualBlocks.push({
                             id: blockIdCounter++,
                             char: '$',
+                            isFrozen: false,
                             tiles: [{ x: c, y: r, targetX: c, targetY: r }],
                             isTrapped: false
                         });
@@ -3895,12 +3950,16 @@ let currentSteps = 0;
                         visualBlocks.push({
                             id: blockIdCounter++,
                             char: cellValue,
+                            isFrozen: false,
                             tiles: compTiles.map(tile => ({ x: tile.c, y: tile.r, targetX: tile.c, targetY: tile.r })),
                             isTrapped: false
                         });
                     }
                 }
             }
+
+            // Freeze any block that already has a component on a freeze (Z) tile
+            updateFrozenBlocks();
 
             particles = [];
             buildLevelsSidebar();
@@ -4092,10 +4151,10 @@ let currentSteps = 0;
                 for (let c = 0; c < row.length; c++) {
                     const ch = row[c];
                     if (ch === '@') { playerCount++;
-                        playerPos = { r, c }; } else if (ch === '.') goalCount++;
+                        playerPos = { r, c }; } else if (ch === '.' || ch === 'Z') goalCount++;
                     else if (ch === '$' || ch === '*') boxCount++;
-                    else if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && !isDigit(ch)) boxCount++;
-                    else if (ch === '#' || ch === ' ' || ch === 'x' || ch === 'I') { /* valid */ } else if (ch >= 'A' && ch <=
+                    else if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && ch !== 'Z' && !isDigit(ch)) boxCount++;
+                    else if (ch === '#' || ch === ' ' || ch === 'x' || ch === 'I') { /* valid */ } else if (ch >= 'A' &&
                         'Z') { /* valid structure letter */ } else if (ch >= 'a' && ch <= 'z') { /* valid move tile */ } else if (
                         ch >= '0' && ch <= '9') { /* valid digit */ } else {
                         return { valid: false, error: `Invalid character '${ch}' at (${c}, ${r}).` };
@@ -4118,7 +4177,7 @@ let currentSteps = 0;
                 for (let r = 0; r < grid.length; r++) {
                     for (let c = 0; c < grid[r].length; c++) {
                         const ch = grid[r][c];
-                        if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && !isDigit(ch)) structureBoxCount++;
+                        if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && ch !== 'Z' && !isDigit(ch)) structureBoxCount++;
                     }
                 }
                 if (structureBoxCount === 0) {
@@ -4409,6 +4468,7 @@ let currentSteps = 0;
             if (originalVal === '.' || originalVal === '*' || originalVal === '+') return '.';
             if (originalVal === 'x') return 'x';
             if (originalVal === 'I') return 'I';
+            if (originalVal === 'Z') return 'Z';
             if (isDigit(originalVal)) return originalVal;
             return ' ';
         }
@@ -4418,12 +4478,27 @@ let currentSteps = 0;
             visualBlocks.forEach(block => {
                 block.tiles.forEach(tile => {
                     const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
-                    if (cellOrig === '.' || cellOrig === '*' || cellOrig === '+') {
+                    if (cellOrig === '.' || cellOrig === '*' || cellOrig === '+' || cellOrig === 'Z') {
                         count++;
                     }
                 });
             });
             return count;
+        }
+
+        // ── FREEZE TILES ('Z') ──
+        // If, after any move, any component of a block sits on a 'Z' tile, that
+        // whole block becomes frozen. A frozen block behaves like a static wall:
+        // it can never be pushed again, by the player or by multi-push chains.
+        // (Undo restores the previous state, which may un-freeze the block.)
+        function updateFrozenBlocks() {
+            visualBlocks.forEach(block => {
+                if (block.isFrozen) return; // freeze is permanent for that block
+                const onFreezeTile = block.tiles.some(tile =>
+                    originalGrid[tile.targetY]?.[tile.targetX] === 'Z'
+                );
+                if (onFreezeTile) block.isFrozen = true;
+            });
         }
 
         function isYellowWallPassable(r, c) {
@@ -4540,6 +4615,7 @@ let currentSteps = 0;
                 id: b.id,
                 char: b.char,
                 isTrapped: b.isTrapped,
+                isFrozen: b.isFrozen,
                 tiles: b.tiles.map(t => ({ x: t.targetX, y: t.targetY }))
             }));
 
@@ -4570,6 +4646,7 @@ let currentSteps = 0;
             }
 
             function canMoveSingleBlock(block, dirR, dirC) {
+                if (block.isFrozen) return false;
                 for (let tile of block.tiles) {
                     let nr = tile.y + dirR;
                     let nc = tile.x + dirC;
@@ -4611,6 +4688,7 @@ let currentSteps = 0;
             function canMoveChain(chainIds, dirR, dirC) {
                 for (let id of chainIds) {
                     const block = simBlocks.find(b => b.id === id);
+                    if (block.isFrozen) return false;
                     for (let tile of block.tiles) {
                         let nr = tile.y + dirR,
                             nc = tile.x + dirC;
@@ -4792,7 +4870,7 @@ let currentSteps = 0;
             visualBlocks.forEach(block => {
                 block.tiles.forEach(tile => {
                     const cellOrig = originalGrid[tile.targetY]?.[tile.targetX];
-                    const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                    const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+' || cellOrig === 'Z';
                     activeGrid[tile.targetY][tile.targetX] = isGoal ? '*' : block.char;
                 });
             });
@@ -4806,6 +4884,10 @@ let currentSteps = 0;
                 _remainingMoves--;
             }
             updateMovesDisplay();
+
+            // Freeze any block that ended up on a 'Z' tile after this move
+            updateFrozenBlocks();
+
             checkRules();
             
         }
@@ -5010,7 +5092,7 @@ let currentSteps = 0;
             for (let r = 0; r < originalGrid.length; r++) {
                 for (let c = 0; c < originalGrid[r].length; c++) {
                     const cell = originalGrid[r][c];
-                    if (cell === '.' || cell === '*' || cell === '+') totalGoals++;
+                    if (cell === '.' || cell === '*' || cell === '+' || cell === 'Z') totalGoals++;
                 }
             }
 
@@ -5851,6 +5933,7 @@ let currentSteps = 0;
                     if (myType === 'FLOOR') {
                         const cellOrig = originalGrid[r][c] || ' ';
                         const isGoal = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                        const isFreeze = cellOrig === 'Z';
                         const isTrap = cellOrig === 'x';
                         const isIce = cellOrig === 'I';
                         if (cellOrig >= 'a' && cellOrig <= 'z' && MOVE_TILE_LIMITS.hasOwnProperty(cellOrig)) {
@@ -5885,6 +5968,15 @@ let currentSteps = 0;
                             const gSize = tileSize * 0.22;
                             ctx.fillStyle = '#22c55e';
                             ctx.fillRect(x + (tileSize - gSize) / 2, y + (tileSize - gSize) / 2, gSize, gSize);
+                        } else if (isFreeze) {
+                            // Blue "end freeze" target: filled square + small outward outline
+                            const gSize = tileSize * 0.22;
+                            ctx.fillStyle = '#3b82f6';
+                            ctx.fillRect(x + (tileSize - gSize) / 2, y + (tileSize - gSize) / 2, gSize, gSize);
+                            const oSize = tileSize * 0.46;
+                            ctx.strokeStyle = '#3b82f6';
+                            ctx.lineWidth = 1.5;
+                            ctx.strokeRect(x + (tileSize - oSize) / 2, y + (tileSize - oSize) / 2, oSize, oSize);
                         } else if (isTrap) {
                             ctx.strokeStyle = '#ef4444';
                             ctx.lineWidth = 2;
@@ -5937,7 +6029,7 @@ let currentSteps = 0;
                     if (B) y2 += 0.5;
 
                     const cellOrig = originalGrid[ty]?.[tx];
-                    const isTileDocked = cellOrig === '.' || cellOrig === '*' || cellOrig === '+';
+                    const isTileDocked = cellOrig === '.' || cellOrig === '*' || cellOrig === '+' || cellOrig === 'Z';
                     let heatContact = false;
                     if (isHeatBox(block.char)) {
                         const neighbours = [
@@ -5965,7 +6057,8 @@ let currentSteps = 0;
                 });
 
                 let outlineColor = '#000000';
-                if (isIceBox(block.char)) outlineColor = '#3b82f6';
+                if (block.isFrozen) outlineColor = '#2563eb';
+                else if (isIceBox(block.char)) outlineColor = '#3b82f6';
                 else if (isHeatBox(block.char)) outlineColor = '#ef4444';
 
                 const drawOutline = (pad, strokeStyle, lineWidth) => {
