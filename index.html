@@ -512,6 +512,14 @@
     </div>
 
     <script>
+    // ─────────────────────────────────────────────────────────────────
+    //  ANTI-CHEAT WRAPPER
+    //  The whole script runs inside an IIFE so that none of the internal
+    //  game state (currentSteps, isLevelSolved, grids, blocks, history,
+    //  flags, etc.) is directly reachable from the browser console.
+    //  Only the functions below (exposed on `window`) are visible.
+    // ─────────────────────────────────────────────────────────────────
+    (function () {
         // ───────────────────────────────────────────────────────────────
         //  CORE CONSTANTS & HELPERS
         // ───────────────────────────────────────────────────────────────
@@ -535,7 +543,7 @@
         const FIREBASE_DB = firebase.database();
 
         // ── DISCORD WEBHOOK (set your URL here) ──
-        const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1549026779195248651/8b7IRXOJmrHqXfz1Evw6oJ94PJoMYHlKLouGAMeM_L3MFt0Ockzi7y0wJ0z45OQoIOWM"; // ← paste your Discord webhook URL
+        const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1549026779195248651/8b7IRXOJmrHqXfz1Evw6oJ94PJoMYHlKLouGAMeM_L3MFt0Ockzi7y0wJ0z45OQoIOWM";
 
         function sendDiscordWebhook(message) {
             if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_WEBHOOK_URL_HERE") return;
@@ -543,10 +551,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: message })
-            }).catch(() => {}); // silently fail
+            }).catch(() => {});
         }
 
-        // ── COUNTER: total levels completed (stored in Firebase) ──
         function getTotalCompletedCount(callback) {
             const ref = FIREBASE_DB.ref('stats/totalCompetions');
             ref.once('value').then(snapshot => {
@@ -570,21 +577,88 @@
         }
 
         // ───────────────────────────────────────────────────────────────
+        //  SEALED MOVE LEDGER  (anti-cheat)
+        //  Lives inside this IIFE. Its internal `_moves`, `_gridHash`,
+        //  `_solved` and `_solvedAt` are NOT reachable from the console.
+        //  `submitScore` calls `verify()` which checks that:
+        //    • the level's original grid is unchanged (hash match)
+        //    • the level was actually solved (markSolved was called)
+        //    • the claimed step count matches the internally-recorded
+        //      move-log length at the moment of the win.
+        //  A player who sets `currentSteps = 0` or `isLevelSolved = true`
+        //  from the console will fail these checks.
+        // ───────────────────────────────────────────────────────────────
+        const _Ledger = (function () {
+            let _moves = [];        // array of { dr, dc }
+            let _gridHash = 0;      // hash of originalGrid at level start
+            let _solved = false;
+            let _solvedAt = -1;
+
+            function _hashGrid(gridArr) {
+                let h = 5381;
+                for (let r = 0; r < gridArr.length; r++) {
+                    const row = gridArr[r];
+                    if (!row) continue;
+                    for (let c = 0; c < row.length; c++) {
+                        const ch = row[c];
+                        const code = (typeof ch === 'string') ? ch.charCodeAt(0) : (ch | 0);
+                        h = ((h << 5) + h + code) | 0;
+                    }
+                    h = ((h << 5) + h + 10) | 0;
+                }
+                return h;
+            }
+
+            return {
+                startLevel(gridArr) {
+                    _moves = [];
+                    _gridHash = _hashGrid(gridArr);
+                    _solved = false;
+                    _solvedAt = -1;
+                },
+                recordMove(dr, dc) {
+                    _moves.push({ dr: dr, dc: dc });
+                },
+                undoMove() {
+                    if (_moves.length > 0) _moves.pop();
+                },
+                resetMoves() {
+                    _moves = [];
+                    _solved = false;
+                    _solvedAt = -1;
+                },
+                markSolved() {
+                    _solved = true;
+                    _solvedAt = _moves.length;
+                },
+                getCount() { return _moves.length; },
+                snapshot() {
+                    return _moves.map(m => ({ dr: m.dr, dc: m.dc }));
+                },
+                restore(movesArr) {
+                    _moves = (movesArr || []).map(m => ({ dr: m.dr, dc: m.dc }));
+                },
+                verify(claimedSteps, gridArr) {
+                    if (_hashGrid(gridArr) !== _gridHash) return false;
+                    if (!_solved) return false;
+                    if (claimedSteps !== _solvedAt) return false;
+                    if (claimedSteps !== _moves.length) return false;
+                    return true;
+                }
+            };
+        })();
+
+        // ───────────────────────────────────────────────────────────────
         //  LEADERBOARD — PAGINATED, TIED RANKS, ANTI-CHEAT
         // ───────────────────────────────────────────────────────────────
 
-        // Load 50 at a time
         const LEADERBOARD_PAGE_SIZE = 50;
-        // No hard DB limit – "Load More" fetches more
-        let _leaderboardShouldExit = false; // set true when opened after a win
-        let _lbAllEntries = [];       // full sorted list from DB
-        let _lbDisplayedCount = 0;    // how many shown so far
-        let _lbYourRank = null;       // { absolute, bracket } after searching
+        let _leaderboardShouldExit = false;
+        let _lbAllEntries = [];
+        let _lbDisplayedCount = 0;
+        let _lbYourRank = null;
         let _lbYourSteps = null;
 
-        // ── anti-cheat: functions are sealed on window load so they can't be redefined from console ──
-
-        // ── GETTERS ──
         function getPlayerNickname() {
             const nick = localStorage.getItem('boxpush_nickname');
             if (nick) return nick;
@@ -600,14 +674,12 @@
             return sanitized;
         }
 
-        // ── SWEAR FILTER ──
         const SWEAR_PREFIXES = ['nig', 'fuc', 'shi'];
         function sanitizeNickname(nick) {
             if (!nick) return nick;
             const lower = nick.toLowerCase();
             for (const prefix of SWEAR_PREFIXES) {
                 if (lower.startsWith(prefix)) {
-                    // Generate a safe random name like "Player_42"
                     const safeName = 'Player_' + Math.floor(Math.random() * 90000 + 10000);
                     return safeName;
                 }
@@ -625,7 +697,6 @@
             }
         }
 
-        // ── CLOSE ──
         function closeLeaderboardOnly() {
             document.getElementById('leaderboard-overlay').classList.add('hidden');
             if (_leaderboardShouldExit) {
@@ -647,7 +718,6 @@
             }
         }
 
-        // ── NICKNAME DB ──
         function checkNicknameAvailable(nickname, callback) {
             const ref = FIREBASE_DB.ref('usernames/' + nickname.replace(/[.#$\[\]]/g, '_'));
             ref.once('value').then(snapshot => {
@@ -658,9 +728,7 @@
             });
         }
 
-        // ── MODAL ENTER KEY HANDLERS ──
 document.addEventListener('keydown', function _modalEnterHandler(e) {
-    // Escape closes modals
     if (e.key === 'Escape') {
         if (!document.getElementById('profile-modal').classList.contains('hidden')) {
             closeProfileModal();
@@ -711,11 +779,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
         }
 
-        // ── TRANSFER ALL DATA FROM OLD NICKNAME TO NEW NICKNAME ──
         function transferLeaderboardEntries(oldNickname, newNickname, callback) {
             const promises = [];
 
-            // 1) Transfer leaderboard entries
             const lbRef = FIREBASE_DB.ref('leaderboards');
             const lbPromise = lbRef.once('value').then(snapshot => {
                 const allLevels = snapshot.val() || {};
@@ -732,7 +798,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
             promises.push(lbPromise);
 
-            // 2) Transfer community level authors + completedPlayers + playHistory + likes
             const clRef = FIREBASE_DB.ref('community_levels');
             const clPromise = clRef.once('value').then(snapshot => {
                 const allLevels = snapshot.val() || {};
@@ -741,19 +806,16 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     if (lvl.author === oldNickname) {
                         promises.push(clRef.child(levelKey).update({ author: newNickname }));
                     }
-                    // completedPlayers
                     const completedPlayers = lvl.completedPlayers || {};
                     if (completedPlayers[oldNickname] === true) {
                         promises.push(clRef.child(levelKey).child('completedPlayers/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
                         promises.push(clRef.child(levelKey).child('completedPlayers/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
                     }
-                    // playHistory
                     const playHistory = lvl.playHistory || {};
                     if (playHistory[oldNickname] === true) {
                         promises.push(clRef.child(levelKey).child('playHistory/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
                         promises.push(clRef.child(levelKey).child('playHistory/' + oldNickname.replace(/[.#$\[\]]/g, '_')).remove());
                     }
-                    // likes map
                     const likes = lvl.likes || {};
                     if (likes[oldNickname] === true) {
                         promises.push(clRef.child(levelKey).child('likes/' + newNickname.replace(/[.#$\[\]]/g, '_')).set(true));
@@ -763,7 +825,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
             promises.push(clPromise);
 
-            // 3) Transfer community level comment authors + upvotes/downvotes
             const commentPromise = FIREBASE_DB.ref('community_levels').once('value').then(snapshot => {
                 const allLevels = snapshot.val() || {};
                 Object.keys(allLevels).forEach(levelKey => {
@@ -789,7 +850,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
             promises.push(commentPromise);
 
-            // 4) Transfer usernames entry (description, avatar settings, etc.)
             const oldSafe = oldNickname.replace(/[.#$\[\]]/g, '_');
             const newSafe = newNickname.replace(/[.#$\[\]]/g, '_');
             const descPromise = FIREBASE_DB.ref('usernames/' + oldSafe).once('value').then(snap => {
@@ -810,20 +870,19 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         }
 
         // ── PROFILE DESCRIPTION SYSTEM ──
-        
+
         function openEditProfile() {
             const nickname = getPlayerNickname();
             if (!nickname) {
                 showBottomHudText('Set a nickname first!', 2000);
                 return;
             }
-            
+
             const modal = document.getElementById('edit-profile-modal');
             const input = document.getElementById('profile-desc-input');
             const charCount = document.getElementById('profile-desc-char-count');
             const errorEl = document.getElementById('edit-profile-error');
-            
-            // Load current description from DB
+
             const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
             FIREBASE_DB.ref('usernames/' + safeKey + '/desc').once('value').then(snap => {
                 const desc = snap.val() || '';
@@ -841,12 +900,11 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 input.focus();
             });
         }
-        
+
         function closeEditProfileModal() {
             document.getElementById('edit-profile-modal').classList.add('hidden');
         }
-        
-        // Char counter for profile description
+
         document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('profile-desc-input');
             if (input) {
@@ -856,21 +914,21 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 });
             }
         });
-        
+
         function saveProfileDesc() {
             const nickname = getPlayerNickname();
             if (!nickname) return;
-            
+
             const input = document.getElementById('profile-desc-input');
             const errorEl = document.getElementById('edit-profile-error');
             const desc = input.value.trim();
-            
+
             if (desc.length > 300) {
                 errorEl.textContent = 'Description too long (max 300).';
                 errorEl.classList.remove('hidden');
                 return;
             }
-            
+
             const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
             FIREBASE_DB.ref('usernames/' + safeKey + '/desc').set(desc).then(() => {
                 closeEditProfileModal();
@@ -881,27 +939,23 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 errorEl.classList.remove('hidden');
             });
         }
-        
-        // ── VIEW PROFILE (by nickname) ──
+
         function viewProfile(nickname) {
             const modal = document.getElementById('profile-modal');
             const titleEl = document.getElementById('profile-modal-title');
             const contentEl = document.getElementById('profile-content');
-            
+
             titleEl.textContent = `PROFILE: ${nickname}`;
             contentEl.innerHTML = '<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading…</div>';
             modal.classList.remove('hidden');
-            
+
             const safeKey = nickname.replace(/[.#$\[\]]/g, '_');
-            
-            // Gather stats in parallel
+
             const statsPromises = [];
-            
-            // 1) Completed main levels count (from localStorage for own profile, or estimate from leaderboards)
+
             const mainLevelsCompleted = new Promise(resolve => {
                 const currentNick = getPlayerNickname();
                 if (currentNick === nickname) {
-                    // Own profile: read from localStorage
                     const saved = localStorage.getItem('boxpush_completed_levels');
                     if (saved) {
                         try {
@@ -911,58 +965,51 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                         } catch(e) { resolve(0); }
                     } else resolve(0);
                 } else {
-                    // Other profile: scan leaderboards for main levels where this player has an entry
-                    // Not fully accurate, skip for now
                     resolve('?');
                 }
             });
             statsPromises.push(mainLevelsCompleted);
-            
-            // 2) Completed community levels count & community points (total hearts across created levels)
+
             const communityStats = new Promise(resolve => {
                 const ref = FIREBASE_DB.ref('community_levels');
                 ref.once('value').then(snapshot => {
                     const data = snapshot.val() || {};
                     let communityCompleted = 0;
                     let communityPoints = 0;
-                    
+
                     Object.keys(data).forEach(key => {
                         const lvl = data[key];
-                        // Count community points from levels created BY this user
                         if (lvl.author === nickname) {
                             const likesMap = lvl.likes || {};
                             if (typeof likesMap !== 'number') {
                                 Object.keys(likesMap).forEach(k => { if (likesMap[k]) communityPoints++; });
                             }
                         }
-                        // Count community levels completed BY this user
                         const completedPlayers = lvl.completedPlayers || {};
                         if (completedPlayers[nickname] === true) {
                             communityCompleted++;
                         }
                     });
-                    
+
                     resolve({ communityCompleted, communityPoints });
                 }).catch(err => {
                     resolve({ communityCompleted: '?', communityPoints: '?' });
                 });
             });
             statsPromises.push(communityStats);
-            
-            // Fetch profile data + stats
+
             FIREBASE_DB.ref('usernames/' + safeKey).once('value').then(snap => {
                 const data = snap.val() || {};
                 const desc = data.desc || '';
                 const createdAt = data.timestamp || null;
-                
+
                 Promise.all(statsPromises).then(results => {
                     const mainCompleted = results[0];
                     const { communityCompleted, communityPoints } = results[1];
-                    
+
                     let html = `<div class="text-left space-y-3">`;
                     html += `<h4 class="font-black text-sm tracking-widest uppercase text-black">${escapeHtml(nickname)}</h4>`;
-                    
-                    // Stats section
+
                     html += `<div class="grid grid-cols-3 gap-2 bg-neutral-50 border border-neutral-200 p-3 rounded-none text-center">
                                 <div>
                                     <div class="font-black text-sm text-black">${mainCompleted}</div>
@@ -977,18 +1024,18 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                                     <div class="text-[8px] font-black tracking-widest uppercase text-neutral-400">Likes</div>
                                 </div>
                             </div>`;
-                    
+
                     if (desc && desc.trim()) {
                         html += `<div class="text-xs font-normal leading-relaxed text-neutral-700 whitespace-pre-wrap bg-neutral-50 border border-neutral-200 p-3 rounded-none">${escapeHtml(desc)}</div>`;
                     } else {
                         html += `<p class="text-xs italic text-neutral-400">No description set.</p>`;
                     }
-                    
+
                     if (createdAt) {
                         const dateStr = new Date(createdAt).toLocaleDateString() + ' ' + new Date(createdAt).toLocaleTimeString();
                         html += `<p class="text-[9px] font-black text-neutral-400 tracking-widest uppercase">Registered: ${dateStr}</p>`;
                     }
-                    
+
                     html += `</div>`;
                     contentEl.innerHTML = html;
                 });
@@ -997,28 +1044,23 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 contentEl.innerHTML = '<div class="text-xs font-bold text-red-500 py-4 text-center">Failed to load profile.</div>';
             });
         }
-        
+
         function closeProfileModal() {
             document.getElementById('profile-modal').classList.add('hidden');
         }
 
-        // ── COMMUNITY LEVELS SYSTEM (integrated in editor) ──
+        // ── COMMUNITY LEVELS SYSTEM ──
 
-        // We store metadata only (no grid) for the browse list; grid loaded lazily on play.
-        // likesCount is now a separate numeric field, not derived from the full likes map.
-        // The full likes map (per-user) is only fetched when the user clicks the like button.
-        let _communityLevelsMeta = [];      // { id, name, author, likesCount, createdAt, playCount } – no grid data
-        let _communityGridCache = {};       // id -> grid array (loaded on demand)
-        let _communityDisplayCount = 15;    // how many to show currently (lazy load via scroll)
+        let _communityLevelsMeta = [];
+        let _communityGridCache = {};
+        let _communityDisplayCount = 15;
 
         function switchEditorTab(tab) {
             // Only "create" tab exists now
         }
 
-        // ── Editor validation tracking ──
         let _editorGridValidated = false;
         let _editorLastGridHash = '';
-        // Must complete your own level in playtest before publish
         let _editorPlaytestCompleted = false;
 
         function editorGridHash(text) {
@@ -1031,7 +1073,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             return hash;
         }
 
-        // Listen for changes in the editor textarea to invalidate validation
         document.addEventListener('DOMContentLoaded', () => {
             const ta = document.getElementById('editor-textarea');
             if (ta) {
@@ -1045,32 +1086,28 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                         statusEl.innerHTML = '<div class="editor-status-info">⚠️ Grid changed – re-validate and complete before publishing.</div>';
                     }
                 });
-                // Also invalidate on first load
                 _editorGridValidated = false;
                 _editorPlaytestCompleted = false;
             }
         });
 
-        // ── PUBLISH MODAL (UI-based, no prompt) ──
         function openPublishModal() {
             const modal = document.getElementById('publish-modal');
             document.getElementById('publish-name-input').value = '';
             document.getElementById('publish-error').classList.add('hidden');
-            
-            // Check validation
+
             if (!_editorGridValidated) {
                 const statusEl = document.getElementById('editor-status');
                 statusEl.innerHTML = '<div class="editor-status-info">⚠️ Please validate the grid first (click ✓).</div>';
                 return;
             }
-            
-            // Check playtest completion
+
             if (!_editorPlaytestCompleted) {
                 const statusEl = document.getElementById('editor-status');
                 statusEl.innerHTML = '<div class="editor-status-info">⚠️ Please complete your own level first (playtest & win).</div>';
                 return;
             }
-            
+
             modal.classList.remove('hidden');
             document.getElementById('publish-name-input').focus();
         }
@@ -1105,7 +1142,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 closePublishModal();
                 return;
             }
-            // Grid size check (doubled up for safety)
             const rows = result.grid.length;
             const cols = getMaxColumns(result.grid);
             if (rows > 20 || cols > 20) {
@@ -1129,15 +1165,14 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 grid: gridText.split('\n').filter(l => l.trim() !== ''),
                 author: nickname,
                 createdAt: Date.now(),
-                likes: {},          // map of player_id -> true for unique likes
-                likesCount: 0,      // numeric counter – this is what the browse list reads (NOT the full map)
+                likes: {},
+                likesCount: 0,
                 playCount: 0,
-                playHistory: {},      // map of player_id -> true (unique play counting)
-                comments: {},         // map of pushId -> { author, text, completed, upvotes: {}, downvotes: {}, createdAt }
-                completedPlayers: {}  // map of player_id -> true
+                playHistory: {},
+                comments: {},
+                completedPlayers: {}
             }).then(() => {
                 document.getElementById('editor-status').innerHTML = '<div class="editor-status-ok">✅ Published!</div>';
-                    // ── Discord webhook: new community level published (always same text for now) ──
                     incrementTotalCompletedCount(function(count) {
                         const msg = `#${count}: **${nickname}** published a new community level: **${name}**!`;
                         sendDiscordWebhook(msg);
@@ -1161,12 +1196,10 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 const data = snapshot.val() || {};
                 const levels = Object.keys(data).map(k => {
                     const lvl = data[k];
-                    // Use the dedicated likesCount field (numeric). Fallback to scanning likes map for legacy data.
                     let likesCount = 0;
                     if (typeof lvl.likesCount === 'number') {
                         likesCount = lvl.likesCount;
                     } else {
-                        // legacy fallback: scan the full likes map
                         const likesMap = lvl.likes || {};
                         if (typeof likesMap === 'object') {
                             Object.keys(likesMap).forEach(key => { if (likesMap[key]) likesCount++; });
@@ -1174,7 +1207,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     }
                     const playHistory = lvl.playHistory || {};
                     const completedPlayers = lvl.completedPlayers || {};
-                    const totalPlays = Object.keys(playHistory).length;  // unique players
+                    const totalPlays = Object.keys(playHistory).length;
                     const totalCompletions = Object.keys(completedPlayers).length;
                     const clearRate = totalPlays > 0 ? (totalCompletions / totalPlays) * 100 : 0;
                     return {
@@ -1209,10 +1242,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     lvl.author.toLowerCase().includes(query)
                 );
             }
-            
-            // Lazy-load: reset display count on new search, otherwise cap
+
             if (query) {
-                _communityDisplayCount = filtered.length; // show all when searching
+                _communityDisplayCount = filtered.length;
             } else {
                 _communityDisplayCount = Math.min(_communityDisplayCount, filtered.length);
             }
@@ -1227,11 +1259,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             const playerNick = getPlayerNickname();
             let html = '';
             let rowIndex = 0;
-            
-            // Like state is not fetched from DB during listing — the button is always neutral
-            // and queries Firebase only on click. This avoids downloading the full likes map
-            // for every level.
-            
+
             displaySlice.forEach(lvl => {
                 const dateStr = lvl.createdAt ? new Date(lvl.createdAt).toLocaleDateString() : '?';
                 const isOwn = nickname && lvl.author === nickname;
@@ -1283,22 +1311,18 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             const likesRef = FIREBASE_DB.ref('community_levels/' + levelId + '/likes/' + safe);
             const countRef = FIREBASE_DB.ref('community_levels/' + levelId + '/likesCount');
 
-            // First check if the user already liked it
             likesRef.once('value').then(snap => {
                 const isLiked = snap.val() === true;
 
                 if (isLiked) {
-                    // Remove their like entry AND decrement count atomically
                     likesRef.remove();
                     countRef.transaction(current => {
                         return (current === null || typeof current !== 'number') ? 0 : Math.max(0, current - 1);
                     });
-                    // Update local cache
                     const lvl = _communityLevelsMeta.find(l => l.id === levelId);
                     if (lvl) {
                         lvl.likesCount = Math.max(0, (lvl.likesCount || 0) - 1);
                     }
-                    // Update button icon immediately
                     const btn = document.getElementById('like-btn-' + levelId);
                     if (btn) {
                         btn.classList.remove('bg-red-100', 'text-red-600');
@@ -1309,17 +1333,14 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     filterCommunityLevels();
                     showBottomHudText('Unliked.', 1000);
                 } else {
-                    // Add their like entry AND increment count atomically
                     likesRef.set(true);
                     countRef.transaction(current => {
                         return (current === null || typeof current !== 'number') ? 1 : current + 1;
                     });
-                    // Update local cache
                     const lvl = _communityLevelsMeta.find(l => l.id === levelId);
                     if (lvl) {
                         lvl.likesCount = (lvl.likesCount || 0) + 1;
                     }
-                    // Update button icon
                     const btn = document.getElementById('like-btn-' + levelId);
                     if (btn) {
                         btn.classList.add('bg-red-100', 'text-red-600');
@@ -1336,7 +1357,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
         }
 
-        // ── DELETE OWN COMMUNITY LEVEL ──
         function deleteCommunityLevel(levelId) {
             const nickname = getPlayerNickname();
             const lvl = _communityLevelsMeta.find(l => l.id === levelId);
@@ -1345,10 +1365,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 return;
             }
             if (!confirm(`Delete "${lvl.name}" permanently? This cannot be undone.`)) return;
-            
+
             FIREBASE_DB.ref('community_levels/' + levelId).remove().then(() => {
                 showBottomHudText('Level deleted!', 2000);
-                // Remove from cache
                 _communityLevelsMeta = _communityLevelsMeta.filter(l => l.id !== levelId);
                 delete _communityGridCache[levelId];
                 filterCommunityLevels();
@@ -1359,11 +1378,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         }
 
         function likeCommunityLevel(levelId) {
-            // legacy alias
             toggleLikeLevel(levelId);
         }
 
-        // ── Level Detail / Comment system ──
         let _detailLevelId = null;
 
         function openLevelDetail(levelId) {
@@ -1371,7 +1388,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             const lvl = _communityLevelsMeta.find(l => l.id === levelId);
             if (!lvl) return;
 
-            // Open comment modal for this level
             const modal = document.getElementById('comment-modal');
             document.getElementById('comment-modal-title').textContent = `COMMENTS — ${lvl.name}`;
             document.getElementById('comment-list').innerHTML = '<div class="text-xs font-bold text-neutral-400 py-4 text-center">Loading comments…</div>';
@@ -1415,7 +1431,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 const c = commentsData[key];
                 const isOwn = nickname && c.author === nickname;
                 const hasCompleted = completedPlayers[c.author] === true;
-                // Count upvotes/downvotes
                 const upvotes = c.upvotes || {};
                 const downvotes = c.downvotes || {};
                 let upCount = 0, downCount = 0;
@@ -1471,7 +1486,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 return;
             }
 
-            // Check if user already has a comment – max 1 per level
             const ref = FIREBASE_DB.ref('community_levels/' + levelId + '/comments');
             ref.once('value').then(snapshot => {
                 const data = snapshot.val() || {};
@@ -1484,7 +1498,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     return;
                 }
 
-                // Check if user has completed this level
                 const lvl = _communityLevelsMeta.find(l => l.id === levelId);
                 const hasCompleted = lvl && lvl.completedPlayers && lvl.completedPlayers[nickname] === true;
 
@@ -1517,7 +1530,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             const safe = nickname.replace(/[.#$\[\]]/g, '_');
 
             if (direction === 'up') {
-                // Toggle upvote: if already upvoted, remove. Also remove downvote if exists.
                 const upRef = FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}/upvotes/${safe}`);
                 const downRef = FIREBASE_DB.ref(`community_levels/${levelId}/comments/${commentKey}/downvotes/${safe}`);
 
@@ -1568,20 +1580,17 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         }
 
         function playCommunityLevel(levelId) {
-            // Look up from meta cache for metadata
             const meta = _communityLevelsMeta.find(l => l.id === levelId);
             if (!meta) {
                 showBottomHudText('Level not found!', 2000);
                 return;
             }
 
-            // Check if we already have the grid cached
             if (_communityGridCache[levelId]) {
                 startCommunityLevel(levelId, meta, _communityGridCache[levelId]);
                 return;
             }
 
-            // Load grid lazily from Firebase
             showBottomHudText('Loading level…', 2000);
             FIREBASE_DB.ref('community_levels/' + levelId + '/grid').once('value').then(snapshot => {
                 const gridData = snapshot.val();
@@ -1589,7 +1598,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     showBottomHudText('Level data corrupted!', 2000);
                     return;
                 }
-                // Cache it
                 _communityGridCache[levelId] = gridData;
                 startCommunityLevel(levelId, meta, gridData);
             }).catch(err => {
@@ -1599,20 +1607,17 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         }
 
         function startCommunityLevel(levelId, meta, gridData) {
-            // Unique play count: record player in playHistory if nickname set
             const nickname = getPlayerNickname();
             if (nickname) {
                 const safe = nickname.replace(/[.#$\[\]]/g, '_');
                 FIREBASE_DB.ref('community_levels/' + levelId + '/playHistory/' + safe).set(true).catch(() => {});
             }
 
-            // Hide custom hub / browse screens
             document.getElementById('custom-hub-screen').classList.add('hidden');
             document.getElementById('browse-screen').classList.add('hidden');
             document.getElementById('editor-screen').classList.add('hidden');
             document.getElementById('title-screen').classList.add('hidden');
 
-            // Save the custom level ID for leaderboard submission later
             window._communityLevelId = levelId;
 
             const name = meta.name;
@@ -1647,7 +1652,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             scaleAndRenderCanvas();
         }
 
-        // ── ASK NICKNAME (same as before but with anti-tamper) ──
         function askForNickname(callback) {
             const modal = document.getElementById('nickname-modal');
             const input = document.getElementById('nickname-input');
@@ -1685,30 +1689,24 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
         }
 
-        // ── SUBMIT SCORE (server-trimmed to 500 now, we do client-side display) ──
-        // levelIndex: number for built-in levels, or string "custom_<firebaseId>" for community levels
-        // IMPORTANT: We ONLY allow submission when isLevelSolved is true AND the steps count
-        // equals the currentSteps variable that the game tracking incremented. This prevents
-        // calling submitScore manually from console with arbitrary step values.
-                function submitScore(levelIndex, steps, callback) {
+        // ── SUBMIT SCORE (with sealed-ledger anti-cheat) ──
+        function submitScore(levelIndex, steps, callback) {
             const nickname = getPlayerNickname();
             if (!nickname) { if (callback) callback(null); return; }
-            
-            // Silently refuse invalid submissions. No console output — do not
-            // log which guard tripped, as that leaks how the checks work.
-            if (!isLevelSolved) {
-                if (callback) callback(null);
-                return;
-            }
-            if (_justLoaded) {
-                if (callback) callback(null);
-                return;
-            }
-            if (steps !== currentSteps) {
-                if (callback) callback(null);
-                return;
-            }
+
+            // ── Primary anti-cheat guards ──
+            if (!isLevelSolved) { if (callback) callback(null); return; }
+            if (_justLoaded) { if (callback) callback(null); return; }
+            if (steps !== currentSteps) { if (callback) callback(null); return; }
             if (typeof steps !== 'number' || steps < 1 || steps > 99999 || !Number.isInteger(steps)) {
+                if (callback) callback(null);
+                return;
+            }
+            // ── Sealed ledger verification ──
+            // Confirms the level grid hasn't been tampered with, that the
+            // level was legitimately solved, and that the number of moves
+            // recorded internally matches the claimed step count.
+            if (!_Ledger.verify(steps, originalGrid)) {
                 if (callback) callback(null);
                 return;
             }
@@ -1719,7 +1717,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 const data = snapshot.val() || {};
                 const entries = Object.values(data);
 
-                // Check if player already has an entry
                 const existingIdx = entries.findIndex(e => e.nickname === nickname);
                 if (existingIdx !== -1) {
                     const existing = entries[existingIdx];
@@ -1731,7 +1728,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     return;
                 }
 
-                // New entry
                 const newEntry = {
                     nickname: nickname,
                     steps: steps,
@@ -1743,7 +1739,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     ref.once('value').then(snap2 => {
                         const allData = snap2.val() || {};
                         const allKeys = Object.keys(allData);
-                        // Trim to 500 max on server side
                         const TRIM_LIMIT = 500;
                         if (allKeys.length > TRIM_LIMIT) {
                             const sorted = allKeys.map(k => ({ key: k, ...allData[k] }))
@@ -1762,9 +1757,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
         }
 
-        // ── FETCH ALL (for pagination + rank search) ──
         function fetchAllLeaderboardEntries(levelIndex, callback) {
-            // levelIndex can be a number (built-in) or string (custom)
             const path = typeof levelIndex === 'string' ? `leaderboards/${levelIndex}` : `leaderboards/level_${levelIndex}`;
             const ref = FIREBASE_DB.ref(path);
             ref.once('value').then(snapshot => {
@@ -1778,8 +1771,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             });
         }
 
-        // ── COMPUTE BRACKET RANKS ──
-        // Returns an array of { rank, steps, count } for each distinct step value
         function computeBracketRanks(sortedEntries) {
             if (sortedEntries.length === 0) return [];
             const brackets = [];
@@ -1801,11 +1792,9 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             return brackets;
         }
 
-        // ── FIND YOUR RANK VIA DFS (full table scan) ──
         function findYourBracketRank(sortedEntries, nickname) {
             if (!nickname) return null;
             const brackets = computeBracketRanks(sortedEntries);
-            // Find which bracket the player's steps fall into
             const playerEntry = sortedEntries.find(e => e.nickname === nickname);
             if (!playerEntry) return null;
 
@@ -1817,9 +1806,8 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             return null;
         }
 
-        // ── RENDER LEADERBOARD (paginated) ──
-        let _lbAllSorted = [];   // full sorted entries for current level
-        let _lbDisplayCount = 0; // how many rendered
+        let _lbAllSorted = [];
+        let _lbDisplayCount = 0;
 
         function openLeaderboardManual() {
             _leaderboardShouldExit = false;
@@ -1847,7 +1835,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             loadMoreArea.classList.add('hidden');
             overlay.classList.remove('hidden');
 
-            // Reset pagination
             _lbAllSorted = [];
             _lbDisplayCount = 0;
             window._lbCurrentLevel = levelIndex;
@@ -1864,7 +1851,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                     return;
                 }
 
-                // Render ALL entries sorted once — no pagination needed
                 renderLeaderboardRows(listEl, allEntries, 0, allEntries.length);
                 loadMoreArea.classList.add('hidden');
             });
@@ -1876,7 +1862,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             const allEntries = _lbAllSorted;
 
             const nextBatch = Math.min(_lbDisplayCount + LEADERBOARD_PAGE_SIZE, allEntries.length);
-            // Re-render entire list (simpler, still fast)
             renderLeaderboardRows(listEl, allEntries, 0, nextBatch);
             _lbDisplayCount = nextBatch;
 
@@ -1889,7 +1874,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             const nickname = getPlayerNickname();
             const brackets = computeBracketRanks(sortedEntries);
 
-            // Build a map: steps -> bracket rank
             const stepsToBracket = {};
             for (const b of brackets) {
                 stepsToBracket[b.steps] = b.rank;
@@ -1901,7 +1885,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 const bracketRank = stepsToBracket[entry.steps] || (i + 1);
                 const yourEntry = entry.nickname === nickname;
 
-                // Show your rank info on your row (absolute rank = i+1, bracket = bracketRank)
                 let rankLabel;
                 if (i === 0) rankLabel = '🥇';
                 else if (i === 1) rankLabel = '🥈';
@@ -1924,7 +1907,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                         </div>`;
             }
 
-            // If there's a "your rank not displayed" note — show it
             if (nickname && _lbYourRank && end < sortedEntries.length) {
                 const foundDisplayed = sortedEntries.slice(start, end).some(e => e.nickname === nickname);
                 if (!foundDisplayed) {
@@ -1944,16 +1926,12 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         }
 
         // ── Hidden integrity token ──
-        // Each frame the game loop checks this token. If it was cleared from console,
-        // the game re-locks the victory flag.
         let _integrityToken = Symbol('boxpush_integrity');
         let _lastIntegrityValue = _integrityToken;
 
-        let _doSealFn = null; // assigned inside the IIFE below
+        let _doSealFn = null;
 
         function _verifyIntegrity() {
-            // If the token was tampered with (e.g. console re-declared the Symbol),
-            // trigger a failure
             if (!_integrityToken || _integrityToken !== _lastIntegrityValue) {
                 if (!isLevelFailed && gameState !== 'title' && gameState !== 'overworld') {
                     isLevelFailed = true;
@@ -1966,9 +1944,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
             return true;
         }
 
-        // ── Seal critical functions to prevent console cheating ──
-        // Prevent re-defining of core game functions after load
-        // Also patch the console to hide these functions if someone tries to log them
+        // ── Seal critical functions (best-effort; the IIFE already hides state) ──
         (function _sealPermanently() {
             const protect = [
                 '_remainingMoves', 'currentSteps', 'isLevelSolved', 'isLevelFailed',
@@ -1993,26 +1969,20 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 'loadOverworld', 'loadLevel', 'setupLevelFromGrid',
                 'handleDirectionalInput', 'handleKeyDown'
             ];
-            
-            // Also make the helper variables used in submitScore non-redefinable on window
-            // (currentSteps is a let, not accessible; isLevelSolved is a let, not accessible.
-            //  But we also freeze the game's critical state-flag functions)
-            
-            // Prevent console from re-defining the victory function itself
+
             function _sealCheckVictory() { /* no-op re-sealer */ }
-            
+
             _doSealFn = function() {
                 protect.forEach(name => {
                     if (typeof window[name] === 'function') {
                         try {
-                            Object.defineProperty(window, name, { 
-                                writable: false, 
-                                configurable: false 
+                            Object.defineProperty(window, name, {
+                                writable: false,
+                                configurable: false
                             });
                         } catch(e) {}
                     }
                 });
-                // Remove move-tile related globals so console can't touch them
                 try { delete window._remainingMoves; } catch(e) {}
                 try { delete window.currentSteps; } catch(e) {}
                 try { delete window.isLevelSolved; } catch(e) {}
@@ -2020,18 +1990,13 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 try { Object.freeze(FIREBASE_DB); } catch(e) {}
             };
 
-            // Seal immediately
             _doSealFn();
-
-            // Re-seal on a timer to catch late re-defines
             setInterval(_doSealFn, 500);
 
-            // Block re-defining via MutationObserver on window property changes
             const originalDefineProperty = Object.defineProperty;
             const protectedSet = new Set(protect);
             Object.defineProperty = function(obj, prop, desc) {
                 if (obj === window && protectedSet.has(prop) && desc && (desc.writable !== false || desc.configurable !== false)) {
-                    // Silently refuse to make protected functions writable again
                     desc.writable = false;
                     desc.configurable = false;
                 }
@@ -3236,10 +3201,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "30,21": { type: "level", index: 15, label: "16" },
                 "32,21": { type: "level", index: 16, label: "17" },
                 "34,21": { type: "level", index: 17, label: "18" },
-                //"32,25": { type: "level", index: 60, label: "T1" },
-
-                //"34,25": { type: "info", text: "This is a test level, you can use it to test all previous mechanics." },
-                //"30,25": { type: "info", text: "They do not count towards regular progress on completion." },
 
                 "32,23": { type: "info", text: "Good luck on #19 and #20 ;)" },
                 "30,23": { type: "level", index: 18, label: "19" },
@@ -3283,7 +3244,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "47,20": { type: "info", text: "Feature time!" },
                 "57,20": { type: "level", index: 34, label: "35" },
                 "57,18": { type: "level", index: 35, label: "36" },
-                //"60,20": { type: "level", index: 61, label: "T2" },
                 "63,20": { type: "level", index: 36, label: "37" },
                 "63,18": { type: "level", index: 37, label: "38" },
 
@@ -3328,8 +3288,6 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 "68,31": { type: "level", index: 58, label: "59" },
                 "68,29": { type: "level", index: 59, label: "60" },
 
-                //"68,25": { type: "level", index: 62, label: "T3" },
-
                 "73,33": { type: "lock", required: 60 },
                 "73,35": { type: "info", text: "GG! Next area." },
                 
@@ -3353,7 +3311,7 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         //  GAME STATE
         // ───────────────────────────────────────────────────────────────
 
-        let gameState = "title"; // "title" | "overworld" | "level" | "editor" | "playtest"
+        let gameState = "title";
         let activeLevelIndex = 0;
         let activeGrid = [];
         let originalGrid = [];
@@ -3394,17 +3352,13 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
         let visualPlayer = { x: 0, y: 0, targetX: 0, targetY: 0, blinkTimer: 0, blinkState: false, facing: 'right' };
         let visualBlocks = [];
 
-        let _remainingMoves = Infinity;        // PRIVATE – DO NOT TOUCH. Sealed by anti-cheat.
-let levelHasMoveTiles = false;
-let overworldEntrancePos = { r: 1, c: 2 };
+        let _remainingMoves = Infinity;
+        let levelHasMoveTiles = false;
+        let overworldEntrancePos = { r: 1, c: 2 };
 
-// Steps counter for leaderboard
-let currentSteps = 0;
-
-        // Track steps at last state save for undo
+        let currentSteps = 0;
         let savedStepsForUndo = 0;
 
-        // Editor state
         let editorCustomGrid = null;
         let isInPlaytest = false;
 
@@ -3608,8 +3562,6 @@ if (savedOverworldPos) {
             playSfx('enter');
         }
 
-        // ── LAUNCH_TARGET direct entry ──
-        // Boots straight into a level (or the overworld) instead of the title screen.
         function launchDirectLevel(index) {
             document.getElementById('title-screen').classList.add('hidden');
             document.getElementById('custom-hub-screen').classList.add('hidden');
@@ -3640,9 +3592,7 @@ if (savedOverworldPos) {
 
         function exitToTitleFromGame() {
             if (gameState === "level" || gameState === "playtest") {
-                // If in a level or playtest, ask for confirmation or just exit
                 if (isLevelSolved) {
-                    // Already solved, just exit
                 }
                 loadTitleScreen();
                 playSfx('enter');
@@ -3826,9 +3776,11 @@ if (savedOverworldPos) {
             activeGrid = gridData.map(row => row.split(''));
             originalGrid = gridData.map(row => row.split(''));
 
+            // ── Anti-cheat: initialise the sealed move ledger with the ORIGINAL grid.
+            _Ledger.startLevel(originalGrid);
+
             currentSteps = 0;
             updateStepsDisplay();
-            // Also update the plain steps label on initial load
 
             levelHasMoveTiles = false;
             for (let r = 0; r < originalGrid.length; r++) {
@@ -3887,8 +3839,6 @@ if (savedOverworldPos) {
                 }
             }
 
-            // Mark that the level was just loaded – prevents checkVictory from
-            // triggering on initial grid setup (e.g. if a box already sits on a target)
             _justLoaded = true;
             setTimeout(() => { _justLoaded = false; }, 100);
 
@@ -3958,7 +3908,6 @@ if (savedOverworldPos) {
                 }
             }
 
-            // Freeze any block that already has a component on a freeze (Z) tile
             updateFrozenBlocks();
 
             particles = [];
@@ -4009,6 +3958,11 @@ if (savedOverworldPos) {
             isInPlaytest = false;
             editorCustomGrid = null;
 
+            // Reset editor flags so a fresh session starts from scratch.
+            _editorGridValidated = false;
+            _editorLastGridHash = '';
+            _editorPlaytestCompleted = false;
+
             const defaultGrid = [
                 "#########",
                 "#       #",
@@ -4044,7 +3998,6 @@ if (savedOverworldPos) {
             playSfx('enter');
         }
 
-        // Scroll-based lazy loading for community level list
         let _communityListScrollHandler = null;
         function setupCommunityScrollListener() {
             const listEl = document.getElementById('community-level-list');
@@ -4097,7 +4050,6 @@ if (savedOverworldPos) {
         }
 
         function openLevelEditor() {
-            // legacy – redirect to new hub
             openCustomHub();
         }
 
@@ -4134,7 +4086,6 @@ if (savedOverworldPos) {
             const rows = grid.length;
             const maxCol = getMaxColumns(grid);
 
-            // Max size check: 20×20
             if (rows > 20 || maxCol > 20) {
                 return { valid: false, error: `Grid is ${rows}×${maxCol} – max allowed is 20×20.` };
             }
@@ -4146,7 +4097,6 @@ if (savedOverworldPos) {
 
             for (let r = 0; r < grid.length; r++) {
                 const row = grid[r];
-                // Pad row to maxCol with spaces
                 while (row.length < maxCol) row.push(' ');
                 for (let c = 0; c < row.length; c++) {
                     const ch = row[c];
@@ -4154,9 +4104,9 @@ if (savedOverworldPos) {
                         playerPos = { r, c }; } else if (ch === '.' || ch === 'Z') goalCount++;
                     else if (ch === '$' || ch === '*') boxCount++;
                     else if (ch >= 'A' && ch <= 'Z' && ch !== 'I' && ch !== 'Z' && !isDigit(ch)) boxCount++;
-                    else if (ch === '#' || ch === ' ' || ch === 'x' || ch === 'I') { /* valid */ } else if (ch >= 'A' &&
-                        'Z') { /* valid structure letter */ } else if (ch >= 'a' && ch <= 'z') { /* valid move tile */ } else if (
-                        ch >= '0' && ch <= '9') { /* valid digit */ } else {
+                    else if (ch === '#' || ch === ' ' || ch === 'x' || ch === 'I') { } else if (ch >= 'A' &&
+                        'Z') { } else if (ch >= 'a' && ch <= 'z') { } else if (
+                        ch >= '0' && ch <= '9') { } else {
                         return { valid: false, error: `Invalid character '${ch}' at (${c}, ${r}).` };
                     }
                 }
@@ -4172,7 +4122,6 @@ if (savedOverworldPos) {
                 return { valid: false, error: 'No targets (.) found.' };
             }
             if (boxCount === 0) {
-                // Also count big structure letters (A-Z except I, #, ., etc.) as boxes
                 let structureBoxCount = 0;
                 for (let r = 0; r < grid.length; r++) {
                     for (let c = 0; c < grid[r].length; c++) {
@@ -4191,8 +4140,7 @@ if (savedOverworldPos) {
         function playtestEditorGrid() {
             const text = document.getElementById('editor-textarea').value;
             const result = parseAndValidateGrid(text);
-            
-            // Reset the playtest completion flag on each new playtest
+
             _editorPlaytestCompleted = false;
 
             if (!result.valid) {
@@ -4204,17 +4152,13 @@ if (savedOverworldPos) {
             editorCustomGrid = result.grid;
             isInPlaytest = true;
 
-            // Hide editor UI, show game
             document.getElementById('editor-screen').classList.add('hidden');
 
-            // Load the custom grid as a playtest level
             const gridData = editorCustomGrid.map(row => row.join(''));
             const name = "Custom Level";
 
-            // Set up the level
             setupLevelFromGrid(gridData, name, "Your custom level. Good luck!", false, false);
 
-            // Override gameState to "playtest"
             gameState = "playtest";
 
             document.getElementById('level-title-display').textContent = `PLAYTEST: ${name}`;
@@ -4225,7 +4169,6 @@ if (savedOverworldPos) {
             document.getElementById('btn-respawn').classList.add('hidden');
             document.getElementById('level-controls-group').classList.remove('opacity-0', 'pointer-events-none');
 
-            // Show moves counter if needed
             if (levelHasMoveTiles) {
                 document.getElementById('moves-counter').classList.remove('hidden');
                 document.getElementById('moves-number').textContent = '∞';
@@ -4241,21 +4184,19 @@ if (savedOverworldPos) {
             scaleAndRenderCanvas();
         }
 
+        // ── BUGFIX: do NOT clear `_editorPlaytestCompleted` when returning
+        //    from a playtest to the editor. The whole point of playtesting
+        //    is to unlock publishing; wiping the flag here is what made the
+        //    publish button say "complete your own level first" again.
         function exitPlaytestToEditor() {
             if (gameState === "playtest") {
-                // Clean up state flags – prevent stale "solved" state from
-                // triggering on next play test
                 _justLoaded = false;
                 isLevelSolved = false;
                 isLevelFailed = false;
-                if (!window._communityLevelId) {
-                    _editorPlaytestCompleted = false;
-                }
                 const hadCommunityLevel = !!window._communityLevelId;
                 window._communityLevelId = null;
-                
+
                 if (hadCommunityLevel) {
-                    // Return to browse screen
                     document.getElementById('browse-screen').classList.remove('hidden');
                     document.getElementById('btn-back-editor').classList.add('hidden');
                     document.getElementById('btn-back').classList.add('hidden');
@@ -4265,13 +4206,12 @@ if (savedOverworldPos) {
                     document.getElementById('hud-coordinates').classList.add('hidden');
                     document.getElementById('moves-counter').classList.add('hidden');
                     document.getElementById('bottom-hint-wrapper').classList.add('hidden');
-                    
+
                     gameState = "browse";
                     isInPlaytest = false;
                     scaleAndRenderCanvas();
                     playSfx('enter');
                 } else {
-                    // Return to editor
                     document.getElementById('editor-screen').classList.remove('hidden');
                     document.getElementById('btn-back-editor').classList.add('hidden');
                     document.getElementById('btn-back').classList.add('hidden');
@@ -4486,14 +4426,9 @@ if (savedOverworldPos) {
             return count;
         }
 
-        // ── FREEZE TILES ('Z') ──
-        // If, after any move, any component of a block sits on a 'Z' tile, that
-        // whole block becomes frozen. A frozen block behaves like a static wall:
-        // it can never be pushed again, by the player or by multi-push chains.
-        // (Undo restores the previous state, which may un-freeze the block.)
         function updateFrozenBlocks() {
             visualBlocks.forEach(block => {
-                if (block.isFrozen) return; // freeze is permanent for that block
+                if (block.isFrozen) return;
                 const onFreezeTile = block.tiles.some(tile =>
                     originalGrid[tile.targetY]?.[tile.targetX] === 'Z'
                 );
@@ -4832,7 +4767,7 @@ if (savedOverworldPos) {
 
         function movePlayer(dir) {
             if (isLevelFailed || isLevelSolved) return;
-            if (_justLoaded) return; // Don't allow moves during initial load window
+            if (_justLoaded) return;
             if (levelHasMoveTiles && _remainingMoves <= 0) return;
             let dr = 0,
                 dc = 0;
@@ -4845,7 +4780,6 @@ if (savedOverworldPos) {
             const simResult = simulateMove(dr, dc, playerPos, visualBlocks);
             if (!simResult) return;
 
-            // Save state BEFORE incrementing steps, so undo restores the old step count
             saveStateToHistory();
 
             currentSteps++;
@@ -4885,8 +4819,13 @@ if (savedOverworldPos) {
             }
             updateMovesDisplay();
 
-            // Freeze any block that ended up on a 'Z' tile after this move
             updateFrozenBlocks();
+
+            // ── Anti-cheat: log this move in the sealed ledger. The order
+            //    matters: it must come BEFORE checkRules() so that when
+            //    checkVictory() calls _Ledger.markSolved(), the move count
+            //    already includes this final move.
+            _Ledger.recordMove(dr, dc);
 
             checkRules();
             
@@ -4915,13 +4854,11 @@ if (savedOverworldPos) {
         function editNickname() {
             hideSidebar();
             const oldName = getPlayerNickname();
-            // Custom version of askForNickname for renaming
             const modal = document.getElementById('nickname-modal');
             const input = document.getElementById('nickname-input');
             const error = document.getElementById('nickname-error');
             input.value = oldName || '';
             error.classList.add('hidden');
-            // Update title
             const title = modal.querySelector('h2');
             const origTitle = title.textContent;
             title.textContent = 'RENAME NICKNAME';
@@ -4941,7 +4878,6 @@ if (savedOverworldPos) {
                 if (!/^[a-zA-Z0-9_-]+$/.test(val)) { error.textContent = 'Only letters, numbers, _, - allowed.';
                     error.classList.remove('hidden'); return; }
                 if (val === oldName) {
-                    // Same name, just close
                     modal.classList.add('hidden');
                     title.textContent = origTitle;
                     showBottomHudText('Name unchanged.', 1500);
@@ -4953,13 +4889,11 @@ if (savedOverworldPos) {
                         error.classList.remove('hidden');
                         return;
                     }
-                    // ── Transfer all data from old name to new name (leaderboards, community levels, comments, description) ──
                     transferLeaderboardEntries(oldName, val, () => {
                         claimNicknameInDb(val, oldName, () => {
                             setPlayerNickname(val);
                             modal.classList.add('hidden');
                             title.textContent = origTitle;
-                            // Also refresh community level meta cache so levels show new author name
                             _communityLevelsMeta.forEach(lvl => {
                                 if (lvl.author === oldName) lvl.author = val;
                             });
@@ -5004,7 +4938,6 @@ if (savedOverworldPos) {
 
         function checkRules() {
 
-            // Trap check
             let trapTriggered = false;
             visualBlocks.forEach(block => {
                 let blockTrapped = false;
@@ -5019,7 +4952,6 @@ if (savedOverworldPos) {
                 return;
             }
 
-            // Player on yellow wall
             const playerOrigCell = originalGrid[playerPos.r][playerPos.c];
             if (isDigit(playerOrigCell)) {
                 const req = parseInt(playerOrigCell, 10);
@@ -5029,7 +4961,6 @@ if (savedOverworldPos) {
                 }
             }
 
-            // Box on yellow wall
             let boxTrappedInWall = false;
             visualBlocks.forEach(block => {
                 block.tiles.forEach(tile => {
@@ -5045,31 +4976,22 @@ if (savedOverworldPos) {
                 return;
             }
 
-            // Heat box contact
             if (checkHeatBoxContact()) {
                 triggerFailureState();
                 return;
             }
 
-            // Victory
             checkVictory();
             
-            // ---- RUN OUT OF MOVES CHECK ----
             if (!isLevelSolved && _remainingMoves <= 0 && levelHasMoveTiles) {
                 triggerFailureState();
             }
         }
 
-        let _justLoaded = false;  // set true in setupLevelFromGrid, cleared after 100ms
+        let _justLoaded = false;
 
-        // ── Runtime integrity check ──
-        // Verifies that critical state-modifying functions haven't been swapped
-        // and that internal counters match what the game expects.
         function _runtimeIntegrityCheck() {
-            // If isLevelSolved is true but currentSteps is still 0 and we've made no move,
-            // something is wrong (cheat/manual call).
             if (isLevelSolved && currentSteps === 0 && !_justLoaded && historyStack.length === 0 && activeGrid.length > 0) {
-                // Force failure to invalidate the state
                 isLevelSolved = false;
                 isLevelFailed = true;
                 return false;
@@ -5080,9 +5002,8 @@ if (savedOverworldPos) {
         function checkVictory() {
             if (_justLoaded) return;
             if (isLevelFailed) return;
-            if (isLevelSolved) return; // Already solved — prevent re-triggering submitScore
+            if (isLevelSolved) return;
 
-            // Runtime integrity check – catches console-set isLevelSolved=true
             if (!_runtimeIntegrityCheck()) {
                 triggerFailureState();
                 return;
@@ -5103,12 +5024,14 @@ if (savedOverworldPos) {
 
             if (isWon && !isLevelFailed) {
                 isLevelSolved = true;
+                // ── Anti-cheat: record the win in the sealed ledger. This
+                //    captures the current move-log length as the "official"
+                //    step count for this solution.
+                _Ledger.markSolved();
                 playSfx('win');
 
-                // Check nickname for swears after every completion
                 checkAndSanitizeNickname();
 
-                // Only mark as completed if not a custom playtest
                 const isNormalLevel = gameState !== "playtest" && LEVELS[activeLevelIndex] && !LEVELS[activeLevelIndex].special;
                 if (isNormalLevel) {
                     completedLevels.add(activeLevelIndex);
@@ -5116,12 +5039,10 @@ if (savedOverworldPos) {
                     buildLevelsSidebar();
                 }
 
-                // ── Discord webhook ──
                 const nickname = getPlayerNickname();
                 const playerName = nickname || 'Anonymous';
 
                 if (gameState === "playtest" && window._communityLevelId) {
-                    // Community level – increment and get the new count atomically
                     const meta = _communityLevelsMeta.find(l => l.id === window._communityLevelId);
                     const levelName = meta ? meta.name : 'Unknown';
                     incrementTotalCompletedCount(function(count) {
@@ -5129,18 +5050,15 @@ if (savedOverworldPos) {
                             `#${count}: **${playerName}** completed community level **${levelName}** in **${currentSteps}** moves!`
                         );
                     });
-                    // Mark player as completed in DB
                     if (nickname) {
                         const safe = nickname.replace(/[.#$\[\]]/g, '_');
                         FIREBASE_DB.ref('community_levels/' + window._communityLevelId + '/completedPlayers/' + safe).set(true).catch(() => {});
-                        // Update local cache
                         const lvl = _communityLevelsMeta.find(l => l.id === window._communityLevelId);
                         if (lvl) {
                             if (!lvl.completedPlayers) lvl.completedPlayers = {};
                             lvl.completedPlayers[nickname] = true;
                         }
                     }
-                    // Community level – submit to custom leaderboard and show leaderboard
                     if (!nickname) {
                         askForNickname((nick) => {
                             submitScore('custom_' + window._communityLevelId, currentSteps, () => {
@@ -5155,11 +5073,8 @@ if (savedOverworldPos) {
                         });
                     }
                 } else if (isNormalLevel) {
-                    // Normal level – increment and get the new count atomically
                     const levelDisplayName = LEVELS[activeLevelIndex] ? LEVELS[activeLevelIndex].name : `Level ${activeLevelIndex+1}`;
                     incrementTotalCompletedCount(function(count) {
-                        // If count is a multiple of 250, 25% chance of alternate text;
-                        // otherwise 1% chance.
                         const isMilestone = (count % 250 === 0);
                         const altChance = isMilestone ? 0.1 : 0.001;
                         let msg;
@@ -5171,7 +5086,6 @@ if (savedOverworldPos) {
                         sendDiscordWebhook(msg);
                     });
                     if (!nickname) {
-                        // First time – ask for nickname, then submit and show leaderboard
                         askForNickname((nick) => {
                             submitScore(activeLevelIndex, currentSteps, () => {
                                 _leaderboardShouldExit = true;
@@ -5185,9 +5099,8 @@ if (savedOverworldPos) {
                         });
                     }
                 } else if (gameState === "playtest" && !window._communityLevelId) {
-                    // Regular editor playtest – no Discord message, no counter increment
-                    
-                    // Mark editor playtest as completed (required before publish)
+                    // Regular editor playtest – mark as completed so the
+                    // user can now click Publish.
                     _editorPlaytestCompleted = true;
                     document.getElementById('editor-status').innerHTML = '<div class="editor-status-ok">✅ Level completed! You can now publish.</div>';
                     showBottomHudText('🎉 Level completed! (' + currentSteps + ' steps) — you can now publish.', 4000);
@@ -5214,7 +5127,11 @@ if (savedOverworldPos) {
                 })),
                 remainingMoves: _remainingMoves,
                 isLevelFailed: isLevelFailed,
-                steps: currentSteps
+                steps: currentSteps,
+                // ── Anti-cheat: keep the ledger's move-log alongside the
+                //    undo history so that undoing a reset correctly restores
+                //    the recorded moves.
+                ledgerMoves: _Ledger.snapshot()
             });
             if (historyStack.length > 250) historyStack.shift();
         }
@@ -5231,8 +5148,13 @@ if (savedOverworldPos) {
             isLevelFailed = previousState.isLevelFailed || false;
             _remainingMoves = (previousState.remainingMoves !== undefined) ? previousState.remainingMoves : Infinity;
 
-            // Restore steps count from history – this is the step count BEFORE the move was made
             currentSteps = (previousState.steps !== undefined) ? previousState.steps : 0;
+
+            // ── Anti-cheat: restore the sealed ledger to the snapshot taken
+            //    before the move that's being undone.
+            if (previousState.ledgerMoves) {
+                _Ledger.restore(previousState.ledgerMoves);
+            }
 
             updateMovesDisplay();
             updateStepsDisplay();
@@ -5240,7 +5162,6 @@ if (savedOverworldPos) {
             visualPlayer.targetX = playerPos.c;
             visualPlayer.targetY = playerPos.r;
 
-            // Re-evaluate rules to catch "ran out of moves" condition
             checkRules();
 
             playSfx('step');
@@ -5250,14 +5171,12 @@ if (savedOverworldPos) {
             if (gameState !== "level" && gameState !== "playtest") return;
             if (isLevelSolved) return;
 
-            // Save current state for undo (with steps count as it is now)
             saveStateToHistory();
 
             currentSteps = 0;
             updateStepsDisplay();
 
             if (gameState === "playtest") {
-                // Case 1: editor playtest (from Make tab)
                 if (editorCustomGrid) {
                     const gridData = editorCustomGrid.map(row => row.join(''));
                     const name = "Custom Level";
@@ -5271,7 +5190,6 @@ if (savedOverworldPos) {
                     document.getElementById('mobile-dpad-container').classList.remove('hidden');
                     document.getElementById('hud-coordinates').classList.remove('hidden');
                 } 
-                // Case 2: community level played from browse
                 else if (window._communityLevelId && _communityGridCache[window._communityLevelId]) {
                     const gridData = _communityGridCache[window._communityLevelId];
                     const meta = _communityLevelsMeta.find(l => l.id === window._communityLevelId);
@@ -5542,16 +5460,12 @@ if (savedOverworldPos) {
         // ───────────────────────────────────────────────────────────────
 
         function handleKeyDown(e) {
-            // Don't intercept keys when typing in any input or textarea
             const tag = document.activeElement && document.activeElement.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-            // Also skip if the nickname modal is open
             if (!document.getElementById('nickname-modal').classList.contains('hidden')) return;
-            // skip if sidebar open
             const isSidebarOpen = !document.getElementById('sidebar-menu').classList.contains('-translate-x-full');
             if (isSidebarOpen) return;
-            
-            // Block game inputs when nickname modal is visible
+
             if (!document.getElementById('nickname-modal').classList.contains('hidden')) return;
 
             let direction = '';
@@ -5590,9 +5504,7 @@ if (savedOverworldPos) {
         // ───────────────────────────────────────────────────────────────
 
         function gameTick() {
-            // Runtime integrity check – catches console tampering with isLevelSolved
             if (!_verifyIntegrity()) {
-                // Re-seal functions that may have been unsealed
                 if (typeof _doSealFn === 'function') _doSealFn();
             }
             updateTick();
@@ -5671,7 +5583,6 @@ if (savedOverworldPos) {
                 ctx.fillStyle = '#dcdcdc';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             } else {
-                // Fallback: draw a blank with some text
                 ctx.fillStyle = '#dcdcdc';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#000';
@@ -5969,7 +5880,6 @@ if (savedOverworldPos) {
                             ctx.fillStyle = '#22c55e';
                             ctx.fillRect(x + (tileSize - gSize) / 2, y + (tileSize - gSize) / 2, gSize, gSize);
                         } else if (isFreeze) {
-                            // Blue "end freeze" target: filled square + small outward outline
                             const gSize = tileSize * 0.22;
                             ctx.fillStyle = '#3b82f6';
                             ctx.fillRect(x + (tileSize - gSize) / 2, y + (tileSize - gSize) / 2, gSize, gSize);
@@ -6183,10 +6093,66 @@ if (savedOverworldPos) {
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  BOOT
+        //  EXPOSE ONLY HTML EVENT-HANDLER FUNCTIONS ON window
+        //  Everything else stays private inside this IIFE, so console
+        //  users cannot read or write any game state.
         // ───────────────────────────────────────────────────────────────
+        Object.assign(window, {
+            toggleSidebar,
+            exitToOverworld,
+            exitToTitleFromGame,
+            resetOverworldPosition,
+            toggleCustomizeModal,
+            exitPlaytestToEditor,
+            undoMove,
+            resetCurrentLevel,
+            openLeaderboardManual,
+            switchTab,
+            exitToOverworldFromMenu,
+            editNickname,
+            showClearConfirm,
+            confirmClearData,
+            cancelClearData,
+            toggleBottomHint,
+            changeZoom,
+            handleDirectionalInput,
+            startGameFromTitle,
+            openCustomHub,
+            showCredits,
+            exitCustomHubToTitle,
+            openEditProfile,
+            openMakeLevel,
+            openBrowseLevels,
+            exitMakeToHub,
+            validateEditorGrid,
+            playtestEditorGrid,
+            openPublishModal,
+            exitBrowseToHub,
+            refreshCommunityLevels,
+            filterCommunityLevels,
+            confirmPublish,
+            closePublishModal,
+            closeCommentModal,
+            submitComment,
+            hideCredits,
+            setBodyColor,
+            setEyeColor,
+            closeLeaderboardOnly,
+            closeProfileModal,
+            closeEditProfileModal,
+            saveProfileDesc,
+            viewProfile,
+            openLevelDetail,
+            toggleLikeLevel,
+            playCommunityLevel,
+            deleteCommunityLevel,
+            voteComment,
+            deleteComment,
+            loadMoreLeaderboard,
+        });
 
         console.log("BoxPush v3.0 — Custom Level Editor + bugfixes with leaderboard");
+    })();
     </script>
 </body>
 </html>
