@@ -593,6 +593,7 @@
             let _gridHash = 0;      // hash of originalGrid at level start
             let _solved = false;
             let _solvedAt = -1;
+            let _sessionNonce = '';  // random nonce generated at level start
 
             function _hashGrid(gridArr) {
                 let h = 5381;
@@ -615,7 +616,9 @@
                     _gridHash = _hashGrid(gridArr);
                     _solved = false;
                     _solvedAt = -1;
+                    _sessionNonce = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
                 },
+                getNonce() { return _sessionNonce; },
                 recordMove(dr, dc) {
                     _moves.push({ dr: dr, dc: dc });
                 },
@@ -1702,6 +1705,25 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 if (callback) callback(null);
                 return;
             }
+            // ── Session nonce prevents replay attacks ──
+            // Without a valid nonce generated at level start, the submission
+            // is rejected.  This blocks console-based replay attacks that
+            // try to re-submit a captured Firebase write.
+            const submitNonce = _Ledger.getNonce();
+            if (!submitNonce || submitNonce.length < 6) {
+                if (callback) callback(null);
+                return;
+            }
+            // ── Step lower bound ──
+            // Minimum steps based on grid dimensions and box count.
+            const gridRows = originalGrid.length;
+            const gridCols = Math.max(...originalGrid.map(r => r.length));
+            const boxCountEstimate = visualBlocks.length;
+            const absMinSteps = Math.max(boxCountEstimate + 1, Math.floor(Math.min(gridRows, gridCols) * 0.3));
+            if (steps < absMinSteps) {
+                if (callback) callback(null);
+                return;
+            }
             // ── Sealed ledger verification ──
             // Confirms the level grid hasn't been tampered with, that the
             // level was legitimately solved, and that the number of moves
@@ -1710,12 +1732,29 @@ function claimNicknameInDb(nickname, oldNickname, callback) {
                 if (callback) callback(null);
                 return;
             }
+            // ── Enforce cooldown between submissions for the same level ──
+            // Prevents rapid-fire re-submissions after manipulating state.
+            const now = Date.now();
+            const lastSubKey = `boxpush_last_submit_${levelIndex}`;
+            const lastSubmitTime = parseInt(localStorage.getItem(lastSubKey) || '0', 10);
+            if (now - lastSubmitTime < 5000) {
+                if (callback) callback(null);
+                return;
+            }
+            localStorage.setItem(lastSubKey, String(now));
 
             const path = typeof levelIndex === 'string' ? `leaderboards/${levelIndex}` : `leaderboards/level_${levelIndex}`;
             const ref = FIREBASE_DB.ref(path);
             ref.once('value').then(snapshot => {
                 const data = snapshot.val() || {};
                 const entries = Object.values(data);
+
+                // ── Reject if same player already has the exact same score ──
+                const sameScore = entries.find(e => e.nickname === nickname && e.steps === steps);
+                if (sameScore) {
+                    if (callback) callback(null);
+                    return;
+                }
 
                 const existingIdx = entries.findIndex(e => e.nickname === nickname);
                 if (existingIdx !== -1) {
